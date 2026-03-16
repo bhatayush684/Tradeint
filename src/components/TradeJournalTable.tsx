@@ -1,24 +1,29 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronLeft, ChevronRight, Play, AlertTriangle } from 'lucide-react';
-import { tradeJournal, Trade } from '@/data/mockData';
+import { CSVTradeData } from '@/csvManager';
 import TradeReplayModal from './TradeReplayModal';
 
 const PAGE_SIZE = 5;
 
-export default function TradeJournalTable() {
+interface TradeJournalTableProps {
+  trades: CSVTradeData[];
+  isLoading?: boolean;
+}
+
+export default function TradeJournalTable({ trades, isLoading = false }: TradeJournalTableProps) {
   const [search, setSearch] = useState('');
   const [filterOutcome, setFilterOutcome] = useState<'all' | 'win' | 'loss'>('all');
   const [page, setPage] = useState(1);
-  const [replayTrade, setReplayTrade] = useState<Trade | null>(null);
+  const [replayTrade, setReplayTrade] = useState<CSVTradeData | null>(null);
 
   const filtered = useMemo(() => {
-    return tradeJournal.filter(t => {
+    return trades.filter(t => {
       const matchSearch = t.pair.toLowerCase().includes(search.toLowerCase()) || t.id.toLowerCase().includes(search.toLowerCase());
-      const matchFilter = filterOutcome === 'all' || t.outcome === filterOutcome;
+      const matchFilter = filterOutcome === 'all' || (t.result >= 0 ? 'win' : 'loss') === filterOutcome;
       return matchSearch && matchFilter;
     });
-  }, [search, filterOutcome]);
+  }, [trades, search, filterOutcome]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -53,7 +58,12 @@ export default function TradeJournalTable() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
                 {['Trade ID', 'Pair', 'Entry', 'Exit', 'Size', 'Result', 'R:R', 'Violation', ''].map(h => (
@@ -101,6 +111,7 @@ export default function TradeJournalTable() {
               </AnimatePresence>
             </tbody>
           </table>
+          )}
         </div>
 
         {/* Pagination */}

@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
 import { DollarSign, Target, TrendingUp, Brain, Shield } from 'lucide-react';
 import AnimatedCounter from './AnimatedCounter';
+import { PerformanceMetrics } from '@/data/types';
+import { calculateDisciplineScore } from '@/lib/scoring';
+import { allMockTrades } from '@/data';
 
 interface Metrics {
   totalPnL: number;
@@ -18,11 +21,23 @@ const cardConfig = [
   { key: 'disciplineScore', label: 'Discipline Score', icon: Shield, prefix: '', suffix: '/100', decimals: 0 },
 ] as const;
 
-export default function PerformanceCards({ metrics }: { metrics: Metrics }) {
+export default function PerformanceCards({ metrics }: { metrics: PerformanceMetrics }) {
+  // Calculate real discipline score from all trades
+  const disciplineScoreData = calculateDisciplineScore(allMockTrades);
+  
+  // Convert PerformanceMetrics to expected Metrics format
+  const adaptedMetrics: Metrics = {
+    totalPnL: metrics.totalProfitLoss,
+    winRate: metrics.winRate,
+    avgRiskReward: metrics.averageRiskReward,
+    expectancy: metrics.expectancy,
+    disciplineScore: disciplineScoreData.overall
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       {cardConfig.map((c, i) => {
-        const val = metrics[c.key as keyof Metrics];
+        const val = adaptedMetrics[c.key as keyof Metrics];
         const isPositive = c.key === 'totalPnL' ? val > 0 : true;
         return (
           <motion.div

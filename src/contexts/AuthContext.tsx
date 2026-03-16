@@ -13,7 +13,14 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ email: string; name: string } | null>(() => {
     const stored = localStorage.getItem('tradient_user');
-    return stored ? JSON.parse(stored) : null;
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    // Auto-authenticate for development
+    if (import.meta.env.DEV) {
+      return { email: 'demo@tradient.com', name: 'Demo User' };
+    }
+    return null;
   });
 
   const login = useCallback((email: string, _password: string) => {

@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Newspaper, ToggleLeft, ToggleRight } from 'lucide-react';
-import { newsItems, performanceMetrics, newsPerformanceMetrics } from '@/data/mockData';
 import PerformanceCards from './PerformanceCards';
+
+// Sample economic calendar data (in a real app, this would come from an API)
+const economicCalendar = [
+  { id: 1, title: 'FOMC Interest Rate Decision', time: '14:00 EST', impact: 'high' as const, currency: 'USD' },
+  { id: 2, title: 'Non-Farm Payrolls', time: '08:30 EST', impact: 'high' as const, currency: 'USD' },
+  { id: 3, title: 'ECB Press Conference', time: '08:45 EST', impact: 'high' as const, currency: 'EUR' },
+  { id: 4, title: 'UK GDP m/m', time: '02:00 EST', impact: 'medium' as const, currency: 'GBP' },
+  { id: 5, title: 'AUD Employment Change', time: '19:30 EST', impact: 'medium' as const, currency: 'AUD' },
+];
 
 const impactBadge = {
   high: 'impact-high',
@@ -31,7 +39,7 @@ export default function NewsSection() {
         </div>
 
         <div className="space-y-2">
-          {newsItems.map((item, i) => (
+          {economicCalendar.map((item, i) => (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, y: 8 }}
@@ -53,15 +61,6 @@ export default function NewsSection() {
           ))}
         </div>
       </div>
-
-      {showNewsPerf && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-          <div className="mb-2">
-            <p className="text-xs text-muted-foreground">Performance during news events (degraded metrics):</p>
-          </div>
-          <PerformanceCards metrics={newsPerformanceMetrics} />
-        </motion.div>
-      )}
     </div>
   );
 }

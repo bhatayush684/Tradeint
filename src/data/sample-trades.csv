@@ -1,0 +1,6 @@
+tradeId,symbol,entryTime,exitTime,entryPrice,exitPrice,positionSize,profitLoss,riskReward,session,direction,setupType,emotionalState,holdingTime,maxDrawdown,maxProfit,exitReason,commission,swap,tags,notes
+TRD000001,EUR/USD,2024-01-15T09:30:00Z,2024-01-15T11:45:00Z,1.08567,1.08923,0.10,35.60,1.8,london,long,pullback,calm,135,12.50,45.20,take-profit,7.00,0.50,pullback;long;winner;disciplined,Pullback trade during London session
+TRD000002,GBP/USD,2024-01-15T14:20:00Z,2024-01-15T15:30:00Z,1.26345,1.26012,0.15,-49.95,1.2,new-york,short,breakout,fearful,70,55.20,8.30,stop-loss,10.50,-1.20,breakout;short;loser;emotional,Breakout failure during NY session
+TRD000003,USD/JPY,2024-01-16T02:45:00Z,2024-01-16T04:20:00Z,148.234,148.567,0.20,66.60,2.1,tokyo,long,reversal,calm,95,15.40,78.90,take-profit,14.00,0.80,reversal;long;winner;disciplined,Reversal trade during Tokyo session
+TRD000004,AUD/USD,2024-01-16T08:15:00Z,2024-01-16T09:30:00Z,0.65432,0.65211,0.25,-55.25,0.9,sydney,short,scalp,overconfident,75,60.50,5.20,stop-loss,17.50,-0.50,scalp;short;loser;emotional,Scalp trade gone wrong
+TRD000005,EUR/GBP,2024-01-17T10:00:00Z,2024-01-17T12:15:00Z,0.85432,0.85987,0.12,66.60,1.5,overlap,long,swing,calm,135,20.30,85.40,take-profit,8.40,0.60,swing;long;winner;disciplined,Swing trade during London/NY overlap

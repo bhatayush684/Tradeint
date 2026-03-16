@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowUpRight, ArrowDownRight, AlertTriangle, Lightbulb } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine, ReferenceDot } from 'recharts';
-import { Trade } from '@/data/mockData';
+import { CSVTradeData } from '@/csvManager';
 
 // Generate mock price data for replay
-function generatePriceData(trade: Trade) {
+function generatePriceData(trade: CSVTradeData) {
   const points = 50;
   const data = [];
   const range = Math.abs(trade.exit - trade.entry) * 3;
@@ -35,11 +35,12 @@ const recommendations: Record<string, string> = {
   'Revenge Trade': 'After 2 consecutive losses, take a mandatory 30-minute break. Review your journal before re-entering.',
 };
 
-export default function TradeReplayModal({ trade, onClose }: { trade: Trade | null; onClose: () => void }) {
+export default function TradeReplayModal({ trade, onClose }: { trade: CSVTradeData | null; onClose: () => void }) {
   if (!trade) return null;
 
   const { data, entryIdx, exitIdx } = generatePriceData(trade);
   const recommendation = trade.ruleViolation ? recommendations[trade.ruleViolation] || 'Follow your trading plan strictly.' : 'This trade followed your rules — well done!';
+  const outcome = trade.result >= 0 ? 'win' : 'loss';
 
   return (
     <AnimatePresence>
@@ -61,8 +62,8 @@ export default function TradeReplayModal({ trade, onClose }: { trade: Trade | nu
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-border">
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${trade.outcome === 'win' ? 'bg-success/15' : 'bg-destructive/15'}`}>
-                {trade.direction === 'long' ? <ArrowUpRight className={`w-4 h-4 ${trade.outcome === 'win' ? 'text-success' : 'text-destructive'}`} /> : <ArrowDownRight className={`w-4 h-4 ${trade.outcome === 'win' ? 'text-success' : 'text-destructive'}`} />}
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${outcome === 'win' ? 'bg-success/15' : 'bg-destructive/15'}`}>
+                {trade.direction === 'long' ? <ArrowUpRight className={`w-4 h-4 ${outcome === 'win' ? 'text-success' : 'text-destructive'}`} /> : <ArrowDownRight className={`w-4 h-4 ${outcome === 'win' ? 'text-success' : 'text-destructive'}`} />}
               </div>
               <div>
                 <h2 className="text-lg font-bold">{trade.pair} — {trade.id}</h2>
@@ -84,7 +85,7 @@ export default function TradeReplayModal({ trade, onClose }: { trade: Trade | nu
                   <YAxis domain={['auto', 'auto']} tick={{ fill: 'hsl(215, 15%, 55%)', fontSize: 10 }} axisLine={false} tickLine={false} tickCount={5} />
                   <Line type="monotone" dataKey="price" stroke="hsl(215, 15%, 55%)" strokeWidth={1.5} dot={false} />
                   <ReferenceLine y={trade.entry} stroke="hsl(200, 90%, 50%)" strokeDasharray="4 4" label={{ value: `Entry ${trade.entry}`, position: 'right', fill: 'hsl(200, 90%, 50%)', fontSize: 10 }} />
-                  <ReferenceLine y={trade.exit} stroke={trade.outcome === 'win' ? 'hsl(145, 70%, 45%)' : 'hsl(0, 70%, 50%)'} strokeDasharray="4 4" label={{ value: `Exit ${trade.exit}`, position: 'right', fill: trade.outcome === 'win' ? 'hsl(145, 70%, 45%)' : 'hsl(0, 70%, 50%)', fontSize: 10 }} />
+                  <ReferenceLine y={trade.exit} stroke={outcome === 'win' ? 'hsl(145, 70%, 45%)' : 'hsl(0, 70%, 50%)'} strokeDasharray="4 4" label={{ value: `Exit ${trade.exit}`, position: 'right', fill: outcome === 'win' ? 'hsl(145, 70%, 45%)' : 'hsl(0, 70%, 50%)', fontSize: 10 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -102,7 +103,7 @@ export default function TradeReplayModal({ trade, onClose }: { trade: Trade | nu
             </div>
             <div className="bg-secondary/30 rounded-lg p-3 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Outcome</p>
-              <p className={`text-lg font-bold capitalize ${trade.outcome === 'win' ? 'text-success' : 'text-destructive'}`}>{trade.outcome}</p>
+              <p className={`text-lg font-bold capitalize ${outcome === 'win' ? 'text-success' : 'text-destructive'}`}>{outcome}</p>
             </div>
           </div>
 
