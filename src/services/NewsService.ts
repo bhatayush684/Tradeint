@@ -11,6 +11,10 @@ export interface NewsItem {
   symbols?: string[];
 }
 
+import React from 'react';
+import { toast } from 'sonner';
+import { Newspaper, AlertTriangle, Info } from 'lucide-react';
+
 export interface NewsAnalytics {
   totalNews: number;
   highImpact: number;
@@ -78,16 +82,16 @@ class NewsService {
   }
 
   private startRealTimeUpdates() {
-    // Simulate real-time updates every 30 seconds
+    // Simulate real-time updates every 15 seconds so the user can see it pop up
     setInterval(() => {
       this.updateNews();
       this.notifyListeners();
-    }, 30000);
+    }, 15000);
   }
 
   private updateNews() {
     // Simulate receiving new news items
-    if (Math.random() > 0.7) { // 30% chance of new news
+    if (Math.random() > 0.4) { // 60% chance of new news to make it feel alive
       const newNewsItem: NewsItem = {
         id: Date.now().toString(),
         title: `Market Update ${new Date().toLocaleTimeString()}`,
@@ -102,6 +106,17 @@ class NewsService {
       };
 
       this.news.unshift(newNewsItem);
+
+      // Trigger the elegant top-right toast notification
+      toast(newNewsItem.title, {
+        description: `${newNewsItem.impact.toUpperCase()} IMPACT • ${newNewsItem.category.toUpperCase()}`,
+        icon: newNewsItem.impact === 'high' ? '🚨' : '📰',
+        duration: 5000,
+        action: {
+          label: 'View',
+          onClick: () => window.location.href = '/news'
+        }
+      });
       
       // Keep only latest 20 items
       if (this.news.length > 20) {
