@@ -1,0 +1,6 @@
+Account ID,Broker,Timestamp,Ticker,Order_Type,OpenPrice,ClosePrice,Lots,Taxes,Commission,NetProfit,Tags,MagicNumber
+9000182,Oanda,2025/12/01,AAPL,Buy,$150.25,$155.00,,$0.00,-$1.50,$475.00,"Earnings Play",1010
+,,2025/12/02,TSLA,SELL,€250.00,€240.00,,$0.00,-$2.00,€1000.00,,1010
+9000182,Oanda,,EUR/GBP,buy,0.85500,0.86000,2.50,$0.00,-$5.00,£1250.00,"Breakout",1010
+9000182,Oanda,2025/12/05,USD/CAD,Sell,1.3500,1.3550,0.50,$0.00,-$1.00,-$250.00,,1010
+9000182,Oanda,2025/12/08,SPX500,,4500.50,4520.00,1.0,$0.00,-$3.00,$1950.00,"Index Trade",1010

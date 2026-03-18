@@ -54,7 +54,7 @@ export default function EnhancedCSVUpload() {
 
   const MAX_VALIDATION_MESSAGES = 50;
 
-  const validateCSVData = useCallback((data: ParsedTrade[]): ValidationResult => {
+  const validateCSVData = useCallback((trades: CSVTradeData[]): ValidationResult => {
     const errors: string[] = [];
     const warnings: string[] = [];
     let isValid = true;
@@ -62,28 +62,16 @@ export default function EnhancedCSVUpload() {
     let errorCount = 0;
     let warningCount = 0;
 
-    if (data.length === 0) {
-      errors.push('CSV file is empty');
+    if (trades.length === 0) {
+      errors.push('CSV mapping resulted in an empty dataset');
       return { isValid: false, errors, warnings, rowCount: 0, duplicates };
     }
 
     const tradeIds = new Set<string>();
     
-    // Check required columns
-    const requiredFields = ['id', 'date', 'pair', 'direction', 'entry', 'exit'];
-    const firstRow = data[0];
-    
-    requiredFields.forEach(field => {
-      if (!firstRow[field]) {
-        errors.push(`Missing required column: ${field}`);
-        isValid = false;
-      }
-    });
-
-    // Validate data — cap messages to avoid DOM overload
-    for (let index = 0; index < data.length; index++) {
-      const row = data[index];
-      if (index === 0) continue;
+    // Check constraints on the heuristically converted trades
+    for (let index = 0; index < trades.length; index++) {
+      const row = trades[index];
 
       // Stop collecting messages if we've hit the cap
       if (errorCount >= MAX_VALIDATION_MESSAGES && warningCount >= MAX_VALIDATION_MESSAGES) break;
@@ -91,21 +79,15 @@ export default function EnhancedCSVUpload() {
       if (row.id && tradeIds.has(row.id)) {
         duplicates++;
         if (warningCount < MAX_VALIDATION_MESSAGES) {
-          warnings.push(`Row ${index}: Duplicate trade ID: ${row.id}`);
+          warnings.push(`Row ${index + 1}: Duplicate trade ID: ${row.id}`);
           warningCount++;
         }
       } else if (row.id) {
         tradeIds.add(row.id);
       }
 
-      if (!row.id && errorCount < MAX_VALIDATION_MESSAGES) {
-        errors.push(`Row ${index}: Trade ID is required`);
-        errorCount++;
-        isValid = false;
-      }
-
-      if (!row.pair && errorCount < MAX_VALIDATION_MESSAGES) {
-        errors.push(`Row ${index}: Pair is required`);
+      if (row.pair === 'UNKNOWN' && errorCount < MAX_VALIDATION_MESSAGES) {
+        errors.push(`Row ${index + 1}: Unable to map Pair/Symbol. Please ensure column exists.`);
         errorCount++;
         isValid = false;
       }
@@ -122,26 +104,105 @@ export default function EnhancedCSVUpload() {
       isValid,
       errors,
       warnings,
-      rowCount: data.length - 1,
+      rowCount: trades.length,
       duplicates
     };
   }, []);
 
-  /** Convert parsed CSV rows to typed trade objects — done once and reused */
-  const convertToTrades = useCallback((data: ParsedTrade[]): CSVTradeData[] => {
-    return data.map(row => ({
-      id: row.id || `TR-${Date.now()}`,
-      date: row.date || new Date().toISOString().split('T')[0],
-      pair: row.pair || '',
-      direction: (row.direction || 'long') as 'long' | 'short',
-      entry: parseFloat(row.entry || '0'),
-      exit: parseFloat(row.exit || '0'),
-      positionSize: parseFloat(row.positionSize || '0'),
-      result: parseFloat(row.result || '0'),
-      rr: parseFloat(row.rr || '0'),
-      ruleViolation: row.ruleViolation || null,
-      notes: row.notes || ''
-    }));
+  /** Convert and heuristically map any CSV format to typed trades */
+  const convertToTrades = useCallback((data: any[]): CSVTradeData[] => {
+    const KEYWORD_MAP = {
+      date: ['date', 'time', 'opened', 'open_time', 'opentime', 'datetime', 'timestamp'],
+      pair: ['pair', 'symbol', 'asset', 'instrument', 'item', 'ticker'],
+      direction: ['direction', 'type', 'side', 'action', 'position', 'order_type'],
+      entry: ['entry', 'price', 'open_price', 'openprice', 'entry_price', 'avg_price'],
+      exit: ['exit', 'close', 'close_price', 'closeprice', 'exit_price', 'close_rate'],
+      positionSize: ['size', 'volume', 'lots', 'quantity', 'qty', 'amount'],
+      result: ['result', 'profit', 'pnl', 'net', 'net_profit', 'pl', 'realized'],
+      rr: ['rr', 'risk_reward', 'risk/reward', 'r/r', 'risk'],
+      ruleViolation: ['violation', 'mistake', 'error', 'rule'],
+      notes: ['notes', 'comment', 'reason', 'tags']
+    };
+
+    let lastDate = new Date().toISOString().split('T')[0];
+    let lastPair = '';
+    let lastSize = 0.01;
+
+    return data.map((rawRow, index) => {
+      const normalized: any = {};
+      const rawKeys = Object.keys(rawRow);
+      
+      // Heuristic Map
+      for (const [targetKey, keywords] of Object.entries(KEYWORD_MAP)) {
+         const matchedKey = rawKeys.find(key => 
+           keywords.some(k => key.toLowerCase().replace(/[^a-z0-9]/g, '').includes(k.replace(/[^a-z0-9]/g, '')))
+         );
+         if (matchedKey) {
+           normalized[targetKey] = rawRow[matchedKey];
+         }
+      }
+
+      // Cleanup Strings mapped to Numbers
+      const cleanNum = (val: any) => {
+        if (val === undefined || val === null || val === '') return null;
+        const cleaned = val.toString().replace(/[^0-9.-]/g, '');
+        return cleaned ? parseFloat(cleaned) : null;
+      };
+
+      let entry = cleanNum(normalized.entry) || 0;
+      let exit = cleanNum(normalized.exit) || 0;
+      let result = cleanNum(normalized.result) || 0;
+      let positionSize = cleanNum(normalized.positionSize);
+      let rr = cleanNum(normalized.rr) || 0;
+
+      // Infer Direction if missing
+      let direction = 'long';
+      if (normalized.direction) {
+        const dirStr = normalized.direction.toString().toLowerCase();
+        if (dirStr.includes('sell') || dirStr.includes('short')) direction = 'short';
+      } else {
+        if (entry > 0 && exit > 0) {
+           if (result > 0) direction = exit > entry ? 'long' : 'short';
+           else if (result < 0) direction = exit < entry ? 'long' : 'short';
+        }
+      }
+
+      // Date Fallbacks
+      let dateStr = normalized.date?.toString() || '';
+      const dateMatch = dateStr.match(/\d{4}-\d{2}-\d{2}/);
+      if (dateMatch) {
+         lastDate = dateMatch[0];
+      } else if (dateStr) {
+         const d = new Date(dateStr);
+         if (!isNaN(d.getTime())) lastDate = d.toISOString().split('T')[0];
+      }
+
+      // Pair Fallbacks
+      if (normalized.pair) {
+        lastPair = normalized.pair.toString().toUpperCase().trim();
+      }
+
+      // Size Fallbacks
+      if (positionSize !== null && positionSize > 0) {
+        lastSize = positionSize;
+      } else {
+        positionSize = lastSize;
+      }
+
+      return {
+        id: rawRow.id || rawRow.ticket || rawRow.order || `TR-${Date.now()}-${index}`,
+        date: lastDate,
+        pair: lastPair || 'UNKNOWN',
+        direction: direction as 'long' | 'short',
+        entry,
+        exit,
+        positionSize,
+        result,
+        rr,
+        ruleViolation: normalized.ruleViolation || null,
+        notes: normalized.notes || ''
+      };
+    });
   }, []);
 
   const generateDataSummary = useCallback((trades: CSVTradeData[]): DataSummary | null => {
@@ -226,20 +287,17 @@ export default function EnhancedCSVUpload() {
         complete: (results) => {
           setUploadProgress(40);
           
-          const data = results.data as ParsedTrade[];
-          setParsedData(data);
+          // First pass: Convert utilizing heuristic mapping algorithm
+          const trades = convertToTrades(results.data);
 
           // Yield to UI thread before heavy validation
           setTimeout(() => {
             setUploadProgress(60);
 
-            // Validate parsed data
-            const validation = validateCSVData(data);
+            // Validate the automatically mapped data
+            const validation = validateCSVData(trades);
             setValidationResult(validation);
 
-            // Convert once and reuse
-            const trades = convertToTrades(data);
-            
             if (validation.isValid) {
               const summary = generateDataSummary(trades);
               setDataSummary(summary);
@@ -247,22 +305,26 @@ export default function EnhancedCSVUpload() {
             
             setUploadProgress(80);
 
-            // Yield again before save
+            // Yield again before safely saving
             setTimeout(() => {
               if (validation.isValid) {
-                // Load existing trades and merge
                 const existingTrades = CSVManager.loadFromLocalStorage();
-                const mergedTrades = [...existingTrades, ...trades];
                 
-                // Save — CSVManager dispatches the tradesUpdated event
+                // Avoid replacing or duplicating existing trades. Prevent ID clashes:
+                const existingIds = new Set(existingTrades.map(t => t.id));
+                const newUniqueTrades = trades.filter(t => !existingIds.has(t.id));
+
+                const mergedTrades = [...existingTrades, ...newUniqueTrades];
+                
+                // Save — CSVManager seamlessly dispatches the 'tradesUpdated' event
                 CSVManager.saveToLocalStorage(mergedTrades);
                 
                 setValidationResult({
                   isValid: true,
                   errors: [],
-                  warnings: [`Successfully merged ${trades.length} new trades (${mergedTrades.length} total)`],
-                  rowCount: trades.length,
-                  duplicates: 0
+                  warnings: [`Successfully appended ${newUniqueTrades.length} new trades (${mergedTrades.length} total stored)`],
+                  rowCount: newUniqueTrades.length,
+                  duplicates: trades.length - newUniqueTrades.length
                 });
               }
 
