@@ -6,7 +6,7 @@ import {
   BarChart3, Settings, Maximize2, Minimize2
 } from 'lucide-react';
 import { dataManager } from '@/lib/data-management';
-import { Trade } from '@/data/types';
+import { CSVTradeData } from '@/csvManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,7 @@ interface MarketData {
 }
 
 export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: EnhancedTradeReplayModalProps) {
-  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [selectedTrade, setSelectedTrade] = useState<CSVTradeData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -56,7 +56,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
   useEffect(() => {
     if (isOpen && tradeId) {
       const trades = dataManager.getTrades();
-      const trade = trades.find(t => t.tradeId === tradeId);
+      const trade = trades.find(t => t.id === tradeId);
       if (trade) {
         setSelectedTrade(trade);
         generateRealisticChartData(trade);
@@ -65,9 +65,10 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
   }, [isOpen, tradeId]);
 
   // Generate realistic chart data based on actual trade
-  const generateRealisticChartData = (trade: Trade) => {
-    const entryTime = new Date(trade.entryTime);
-    const exitTime = new Date(trade.exitTime);
+  const generateRealisticChartData = (trade: CSVTradeData) => {
+    const entryTime = new Date(trade.date);
+    // Create exit time based on entry time + holding time (estimate 30 minutes if not available)
+    const exitTime = new Date(entryTime.getTime() + (30 * 60 * 1000));
     const duration = exitTime.getTime() - entryTime.getTime();
     const points: PricePoint[] = [];
     const numPoints = 100; // More points for smoother animation
@@ -75,7 +76,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
     // Add entry point
     points.push({
       time: entryTime.toLocaleTimeString(),
-      price: trade.entryPrice,
+      price: trade.entry,
       volume: Math.random() * 1000000 + 500000,
       type: 'entry',
       timestamp: entryTime.getTime()
@@ -88,19 +89,19 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
       const pointTime = new Date(entryTime.getTime() + timeOffset);
       
       // Create realistic market movement
-      const trend = trade.profitLoss > 0 ? 1 : -1;
-      const baseMove = trend * progress * Math.abs(trade.exitPrice - trade.entryPrice);
+      const trend = trade.result > 0 ? 1 : -1;
+      const baseMove = trend * progress * Math.abs(trade.exit - trade.entry);
       
       // Add market noise and volatility
       const volatility = 0.0002; // Realistic forex volatility
-      const noise = (Math.random() - 0.5) * volatility * trade.entryPrice;
+      const noise = (Math.random() - 0.5) * volatility * trade.entry;
       
       // Add cyclical patterns (market cycles)
-      const cycle1 = Math.sin(progress * Math.PI * 8) * volatility * trade.entryPrice * 0.5;
-      const cycle2 = Math.cos(progress * Math.PI * 12) * volatility * trade.entryPrice * 0.3;
+      const cycle1 = Math.sin(progress * Math.PI * 8) * volatility * trade.entry * 0.5;
+      const cycle2 = Math.cos(progress * Math.PI * 12) * volatility * trade.entry * 0.3;
       
       // Combine all factors
-      const price = trade.entryPrice + baseMove + noise + cycle1 + cycle2;
+      const price = trade.entry + baseMove + noise + cycle1 + cycle2;
       
       // Generate realistic volume profile
       let volume = Math.random() * 1000000 + 500000;
@@ -120,7 +121,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
     // Add exit point
     points.push({
       time: exitTime.toLocaleTimeString(),
-      price: trade.exitPrice,
+      price: trade.exit,
       volume: Math.random() * 1000000 + 500000,
       type: 'exit',
       timestamp: exitTime.getTime()
@@ -158,10 +159,10 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
     };
   }, [isPlaying, playbackSpeed, chartData.length]);
 
-  const currentPrice = chartData[currentTime]?.price || selectedTrade?.entryPrice || 0;
+  const currentPrice = chartData[currentTime]?.price || selectedTrade?.entry || 0;
   const currentVolume = chartData[currentTime]?.volume || 0;
   const currentPnL = selectedTrade ? 
-    (currentPrice - selectedTrade.entryPrice) * selectedTrade.positionSize * 
+    (currentPrice - selectedTrade.entry) * selectedTrade.positionSize * 
     (selectedTrade.direction === 'long' ? 1 : -1) : 0;
 
   const calculateProgress = () => {
@@ -178,7 +179,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
 
   const formatTime = (seconds: number) => {
     if (!selectedTrade) return '00:00:00';
-    const entryTime = new Date(selectedTrade.entryTime);
+    const entryTime = new Date(selectedTrade.date);
     const currentTime = new Date(entryTime.getTime() + (seconds * 1000));
     return currentTime.toLocaleTimeString();
   };
@@ -210,7 +211,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
               <div>
                 <h3 className="text-xl font-bold">Enhanced Trade Replay</h3>
                 <p className="text-sm text-muted-foreground">
-                  {selectedTrade.tradeId} - {selectedTrade.symbol}
+                  {selectedTrade.id} - {selectedTrade.pair}
                 </p>
               </div>
             </DialogTitle>
@@ -255,7 +256,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
               <CardContent className="p-4 text-center">
                 <div className="text-sm text-muted-foreground mb-1">Entry Price</div>
                 <div className="text-xl font-mono font-bold text-green-600">
-                  {selectedTrade.entryPrice.toFixed(5)}
+                  {selectedTrade.entry.toFixed(5)}
                 </div>
               </CardContent>
             </Card>
@@ -264,7 +265,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
               <CardContent className="p-4 text-center">
                 <div className="text-sm text-muted-foreground mb-1">Exit Price</div>
                 <div className="text-xl font-mono font-bold text-red-600">
-                  {selectedTrade.exitPrice.toFixed(5)}
+                  {selectedTrade.exit.toFixed(5)}
                 </div>
               </CardContent>
             </Card>
@@ -328,6 +329,15 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
                       tickLine={false}
                       tickFormatter={value => value.toFixed(5)}
                     />
+                    {showVolume && (
+                      <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        tick={{ fill: '#6b7280', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                    )}
                   <Tooltip 
                     content={({ active, payload }) => {
                       if (active && payload?.length) {
@@ -348,19 +358,18 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
                   
                   {/* Volume bars */}
                   {showVolume && (
-                    <BarChart3>
-                      <Bar
-                        dataKey="volume"
-                        fill="#3b82f6"
-                        fillOpacity={0.3}
-                        maxBarSize={20}
-                      />
-                    </BarChart3>
+                    <Bar
+                      dataKey="volume"
+                      fill="#3b82f6"
+                      fillOpacity={0.3}
+                      maxBarSize={20}
+                      yAxisId="right"
+                    />
                   )}
                   
                   {/* Entry Line */}
                   <ReferenceLine 
-                    y={selectedTrade.entryPrice} 
+                    y={selectedTrade.entry} 
                     stroke="#10b981" 
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -369,7 +378,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
                   
                   {/* Exit Line */}
                   <ReferenceLine 
-                    y={selectedTrade.exitPrice} 
+                    y={selectedTrade.exit} 
                     stroke="#ef4444" 
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -386,9 +395,9 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
                   
                   {/* Profit/Loss Area */}
                   <ReferenceArea 
-                    y1={selectedTrade.entryPrice}
-                    y2={selectedTrade.exitPrice}
-                    fill={selectedTrade.profitLoss > 0 ? '#10b981' : '#ef4444'}
+                    y1={selectedTrade.entry}
+                    y2={selectedTrade.exit}
+                    fill={selectedTrade.result > 0 ? '#10b981' : '#ef4444'}
                     fillOpacity={0.1}
                   />
                   
@@ -497,7 +506,7 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
                       {currentPnL >= 0 ? '+' : ''}{currentPnL.toFixed(2)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {((currentPnL / (selectedTrade.entryPrice * selectedTrade.positionSize)) * 100).toFixed(2)}% from entry
+                      {((currentPnL / (selectedTrade.entry * selectedTrade.positionSize)) * 100).toFixed(2)}% from entry
                     </div>
                   </div>
                   
@@ -507,12 +516,12 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
                       <span>Final P&L</span>
                     </div>
                     <div className={`text-3xl font-bold ${
-                      selectedTrade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                      selectedTrade.result >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {selectedTrade.profitLoss >= 0 ? '+' : ''}{selectedTrade.profitLoss.toFixed(2)}
+                      {selectedTrade.result >= 0 ? '+' : ''}{selectedTrade.result.toFixed(2)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {selectedTrade.setupType} • {selectedTrade.session}
+                      {selectedTrade.ruleViolation || 'No violation'} • Manual
                     </div>
                   </div>
                 </div>
@@ -588,17 +597,15 @@ export default function EnhancedTradeReplayModal({ isOpen, onClose, tradeId }: E
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div className="text-center p-3 bg-muted/30 rounded-lg">
                     <div className="text-muted-foreground">Duration</div>
-                    <div className="font-bold">
-                      {Math.floor((new Date(selectedTrade.exitTime).getTime() - new Date(selectedTrade.entryTime).getTime()) / 60000)}m
-                    </div>
+                    <div className="font-bold">30m</div>
                   </div>
                   <div className="text-center p-3 bg-muted/30 rounded-lg">
                     <div className="text-muted-foreground">Risk/Reward</div>
-                    <div className="font-bold">{selectedTrade.riskReward.toFixed(1)}</div>
+                    <div className="font-bold">{selectedTrade.rr.toFixed(1)}</div>
                   </div>
                   <div className="text-center p-3 bg-muted/30 rounded-lg">
                     <div className="text-muted-foreground">Max Drawdown</div>
-                    <div className="font-bold">{selectedTrade.maxDrawdown.toFixed(2)}</div>
+                    <div className="font-bold">N/A</div>
                   </div>
                 </div>
               </div>

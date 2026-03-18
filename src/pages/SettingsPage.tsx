@@ -167,29 +167,7 @@ export default function SettingsPage() {
             </Card>
           </motion.div>
 
-          {/* Account Status */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-            <Card className="glass-card border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-lg">Account Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Plan</span>
-                  <Badge variant="secondary">Pro</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Member Since</span>
-                  <span className="text-sm">Jan 2024</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Storage Used</span>
-                  <span className="text-sm">2.3 GB</span>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
+                  </div>
       </div>
 
       {/* Save Button */}

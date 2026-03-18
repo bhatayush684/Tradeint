@@ -107,6 +107,17 @@ class CSVManager {
     try {
       const csvContent = this.convertToCSV(trades);
       localStorage.setItem('tradient_trades_csv', csvContent);
+      
+      // Trigger storage event to notify other components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'tradient_trades_csv',
+        newValue: csvContent
+      }));
+      
+      // Also trigger custom event for same-tab updates
+      window.dispatchEvent(new CustomEvent('tradesUpdated', {
+        detail: { tradesCount: trades.length }
+      }));
     } catch (error) {
       console.error('Error saving trades to localStorage:', error);
     }
@@ -130,19 +141,19 @@ class CSVManager {
     this.saveToLocalStorage(updatedTrades);
   }
 
-  static convertTradeToCSV(trade: any): CSVTradeData {
+  static convertTradeToCSV(trade: Record<string, unknown>): CSVTradeData {
     return {
-      id: trade.id || `TR-${Date.now()}`,
-      date: trade.date || new Date().toISOString().split('T')[0],
-      pair: trade.pair || '',
-      direction: trade.direction || 'long',
-      entry: trade.entryPrice || trade.entry || 0,
-      exit: trade.exitPrice || trade.exit || 0,
-      positionSize: trade.positionSize || 0,
-      result: trade.result || 0,
-      rr: trade.rr || 0,
-      ruleViolation: trade.ruleViolation || null,
-      notes: trade.notes || ''
+      id: (trade.id as string) || `TR-${Date.now()}`,
+      date: (trade.date as string) || new Date().toISOString().split('T')[0],
+      pair: (trade.pair as string) || '',
+      direction: (trade.direction as 'long' | 'short') || 'long',
+      entry: (trade.entryPrice as number) || (trade.entry as number) || 0,
+      exit: (trade.exitPrice as number) || (trade.exit as number) || 0,
+      positionSize: (trade.positionSize as number) || 0,
+      result: (trade.result as number) || 0,
+      rr: (trade.rr as number) || 0,
+      ruleViolation: (trade.ruleViolation as string | null) || null,
+      notes: (trade.notes as string) || ''
     };
   }
 }

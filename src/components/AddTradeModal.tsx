@@ -185,7 +185,7 @@ export default function AddTradeModal({ isOpen, onClose, onAddTrade }: AddTradeM
     });
   };
 
-  const updateField = (field: string, value: any) => {
+  const updateField = (field: string, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));

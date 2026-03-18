@@ -7,30 +7,20 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { parse } from 'papaparse';
-import { dataManager } from '@/lib/data-management';
-import { Trade } from '@/data/types';
+import CSVManager from '@/csvManager';
+import { CSVTradeData } from '@/csvManager';
 
 interface ParsedTrade {
-  tradeId?: string;
-  symbol?: string;
-  entryTime?: string;
-  exitTime?: string;
-  entryPrice?: string;
-  exitPrice?: string;
-  positionSize?: string;
-  profitLoss?: string;
-  riskReward?: string;
-  session?: string;
+  id?: string;
+  date?: string;
+  pair?: string;
   direction?: string;
-  setupType?: string;
-  emotionalState?: string;
-  holdingTime?: string;
-  maxDrawdown?: string;
-  maxProfit?: string;
-  exitReason?: string;
-  commission?: string;
-  swap?: string;
-  tags?: string;
+  entry?: string;
+  exit?: string;
+  positionSize?: string;
+  result?: string;
+  rr?: string;
+  ruleViolation?: string;
   notes?: string;
 }
 
@@ -48,9 +38,8 @@ interface DataSummary {
   winRate: number;
   avgWin: number;
   avgLoss: number;
-  symbols: string[];
-  setups: string[];
-  sessions: string[];
+  pairs: string[];
+  directions: string[];
 }
 
 export default function EnhancedCSVUpload() {
@@ -77,7 +66,7 @@ export default function EnhancedCSVUpload() {
     const tradeIds = new Set<string>();
     
     // Check required columns
-    const requiredFields = ['tradeId', 'symbol', 'entryTime', 'exitTime', 'entryPrice', 'exitPrice'];
+    const requiredFields = ['id', 'date', 'pair', 'direction', 'entry', 'exit'];
     const firstRow = data[0];
     
     requiredFields.forEach(field => {
@@ -92,15 +81,15 @@ export default function EnhancedCSVUpload() {
       if (index === 0) return; // Skip header row
 
       // Check for duplicate trade IDs
-      if (row.tradeId && tradeIds.has(row.tradeId)) {
+      if (row.id && tradeIds.has(row.id)) {
         duplicates++;
-        warnings.push(`Row ${index}: Duplicate trade ID: ${row.tradeId}`);
-      } else if (row.tradeId) {
-        tradeIds.add(row.tradeId);
+        warnings.push(`Row ${index}: Duplicate trade ID: ${row.id}`);
+      } else if (row.id) {
+        tradeIds.add(row.id);
       }
 
       // Validate numeric fields
-      const numericFields = ['entryPrice', 'exitPrice', 'positionSize', 'profitLoss', 'riskReward'];
+      const numericFields = ['entry', 'exit', 'positionSize', 'result', 'rr'];
       numericFields.forEach(field => {
         const value = row[field as keyof ParsedTrade];
         if (value && isNaN(Number(value))) {
@@ -109,22 +98,18 @@ export default function EnhancedCSVUpload() {
       });
 
       // Validate dates
-      const dateFields = ['entryTime', 'exitTime'];
-      dateFields.forEach(field => {
-        const value = row[field as keyof ParsedTrade];
-        if (value && isNaN(Date.parse(value))) {
-          warnings.push(`Row ${index}: ${field} is not a valid date format`);
-        }
-      });
+      if (row.date && isNaN(Date.parse(row.date))) {
+        warnings.push(`Row ${index}: date is not a valid date format`);
+      }
 
       // Validate required values
-      if (!row.tradeId) {
+      if (!row.id) {
         errors.push(`Row ${index}: Trade ID is required`);
         isValid = false;
       }
 
-      if (!row.symbol) {
-        errors.push(`Row ${index}: Symbol is required`);
+      if (!row.pair) {
+        errors.push(`Row ${index}: Pair is required`);
         isValid = false;
       }
 
@@ -147,45 +132,28 @@ export default function EnhancedCSVUpload() {
     if (data.length === 0) return null;
 
     const trades = data.slice(1).map(row => ({
-      tradeId: row.tradeId || '',
-      symbol: row.symbol || '',
-      entryTime: new Date(row.entryTime || ''),
-      exitTime: new Date(row.exitTime || ''),
-      entryPrice: parseFloat(row.entryPrice || '0'),
-      exitPrice: parseFloat(row.exitPrice || '0'),
+      id: row.id || '',
+      date: row.date || new Date().toISOString().split('T')[0],
+      pair: row.pair || '',
+      direction: (row.direction || 'long') as 'long' | 'short',
+      entry: parseFloat(row.entry || '0'),
+      exit: parseFloat(row.exit || '0'),
       positionSize: parseFloat(row.positionSize || '0'),
-      profitLoss: parseFloat(row.profitLoss || '0'),
-      riskReward: parseFloat(row.riskReward || '0'),
-      session: (row.session || 'london') as 'london' | 'new-york' | 'tokyo' | 'sydney' | 'overlap',
-      direction: row.direction as 'long' | 'short',
-      setupType: (row.setupType || 'breakout') as 'breakout' | 'pullback' | 'reversal' | 'scalp' | 'swing' | 'position',
-      emotionalState: (row.emotionalState || 'calm') as 'calm' | 'fearful' | 'greedy' | 'revenge' | 'overconfident',
-      holdingTime: parseFloat(row.holdingTime || '0'),
-      maxDrawdown: parseFloat(row.maxDrawdown || '0'),
-      maxProfit: parseFloat(row.maxProfit || '0'),
-      exitReason: (row.exitReason || 'manual') as 'stop-loss' | 'take-profit' | 'manual' | 'margin-call' | 'time-exit',
-      commission: parseFloat(row.commission || '0'),
-      swap: parseFloat(row.swap || '0'),
-      tags: row.tags ? row.tags.split(',').map(t => t.trim()) : [],
-      notes: row.notes || '',
-      ruleViolations: [],
-      marketConditions: {
-        trend: 'neutral' as const,
-        volatility: 'medium' as const,
-        session: (row.session || 'london') as 'london' | 'new-york' | 'tokyo' | 'sydney' | 'overlap'
-      }
+      result: parseFloat(row.result || '0'),
+      rr: parseFloat(row.rr || '0'),
+      ruleViolation: row.ruleViolation || null,
+      notes: row.notes || ''
     }));
 
     const totalTrades = trades.length;
-    const totalPnL = trades.reduce((sum, trade) => sum + trade.profitLoss, 0);
-    const winningTrades = trades.filter(t => t.profitLoss > 0);
+    const totalPnL = trades.reduce((sum, trade) => sum + trade.result, 0);
+    const winningTrades = trades.filter(t => t.result > 0);
     const winRate = totalTrades > 0 ? (winningTrades.length / totalTrades) * 100 : 0;
-    const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + t.profitLoss, 0) / winningTrades.length : 0;
-    const avgLoss = trades.length - winningTrades.length > 0 ? trades.filter(t => t.profitLoss < 0).reduce((sum, t) => sum + t.profitLoss, 0) / (trades.length - winningTrades.length) : 0;
+    const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + t.result, 0) / winningTrades.length : 0;
+    const avgLoss = trades.length - winningTrades.length > 0 ? trades.filter(t => t.result < 0).reduce((sum, t) => sum + t.result, 0) / (trades.length - winningTrades.length) : 0;
     
-    const symbols = [...new Set(trades.map(t => t.symbol))];
-    const setups = [...new Set(trades.map(t => t.setupType))];
-    const sessions = [...new Set(trades.map(t => t.session))];
+    const pairs = [...new Set(trades.map(t => t.pair))];
+    const directions = [...new Set(trades.map(t => t.direction))];
 
     return {
       totalTrades,
@@ -193,9 +161,8 @@ export default function EnhancedCSVUpload() {
       winRate,
       avgWin,
       avgLoss,
-      symbols,
-      setups,
-      sessions
+      pairs,
+      directions
     };
   }, []);
 
@@ -275,40 +242,41 @@ export default function EnhancedCSVUpload() {
             setIsUploading(false);
             if (validation.isValid) {
               const trades = data.slice(1).map(row => ({
-                tradeId: row.tradeId || '',
-                symbol: row.symbol || '',
-                entryTime: new Date(row.entryTime || ''),
-                exitTime: new Date(row.exitTime || ''),
-                entryPrice: parseFloat(row.entryPrice || '0'),
-                exitPrice: parseFloat(row.exitPrice || '0'),
+                id: row.id || `TR-${Date.now()}`,
+                date: row.date || new Date().toISOString().split('T')[0],
+                pair: row.pair || '',
+                direction: (row.direction || 'long') as 'long' | 'short',
+                entry: parseFloat(row.entry || '0'),
+                exit: parseFloat(row.exit || '0'),
                 positionSize: parseFloat(row.positionSize || '0'),
-                profitLoss: parseFloat(row.profitLoss || '0'),
-                riskReward: parseFloat(row.riskReward || '0'),
-                session: (row.session || 'london') as 'london' | 'new-york' | 'tokyo' | 'sydney' | 'overlap',
-                direction: row.direction as 'long' | 'short',
-                setupType: (row.setupType || 'breakout') as 'breakout' | 'pullback' | 'reversal' | 'scalp' | 'swing' | 'position',
-                emotionalState: (row.emotionalState || 'calm') as 'calm' | 'fearful' | 'greedy' | 'revenge' | 'overconfident',
-                holdingTime: parseFloat(row.holdingTime || '0'),
-                maxDrawdown: parseFloat(row.maxDrawdown || '0'),
-                maxProfit: parseFloat(row.maxProfit || '0'),
-                exitReason: (row.exitReason || 'manual') as 'stop-loss' | 'take-profit' | 'manual' | 'margin-call' | 'time-exit',
-                commission: parseFloat(row.commission || '0'),
-                swap: parseFloat(row.swap || '0'),
-                tags: row.tags ? row.tags.split(',').map(t => t.trim()) : [],
-                notes: row.notes || '',
-                ruleViolations: [],
-                marketConditions: {
-                  trend: 'neutral' as const,
-                  volatility: 'medium' as const,
-                  session: (row.session || 'london') as 'london' | 'new-york' | 'tokyo' | 'sydney' | 'overlap'
-                }
+                result: parseFloat(row.result || '0'),
+                rr: parseFloat(row.rr || '0'),
+                ruleViolation: row.ruleViolation || null,
+                notes: row.notes || ''
               }));
               
-              dataManager.setUploadedTrades(trades);
+              // Load existing trades and merge with new ones
+              const existingTrades = CSVManager.loadFromLocalStorage();
+              const mergedTrades = [...existingTrades, ...trades];
+              
+              // Save merged data to CSVManager
+              CSVManager.saveToLocalStorage(mergedTrades);
+              
+              // Trigger storage event to notify other components
+              window.dispatchEvent(new StorageEvent('storage', {
+                key: 'tradient_trades_csv',
+                newValue: localStorage.getItem('tradient_trades_csv')
+              }));
+              
+              // Also trigger custom event for same-tab updates
+              window.dispatchEvent(new CustomEvent('tradesUpdated', {
+                detail: { tradesCount: mergedTrades.length }
+              }));
+              
               setValidationResult({
                 isValid: true,
                 errors: [],
-                warnings: [`Successfully imported ${trades.length} trades`],
+                warnings: [`Successfully merged ${trades.length} new trades with existing data (${existingTrades.length + trades.length} total trades)`],
                 rowCount: trades.length,
                 duplicates: 0
               });
@@ -340,49 +308,6 @@ export default function EnhancedCSVUpload() {
     }
   }, [file, validateCSVData, generateDataSummary]);
 
-  const importData = useCallback(() => {
-    if (validationResult?.isValid && parsedData.length > 1) {
-      const trades = parsedData.slice(1).map(row => ({
-        tradeId: row.tradeId || '',
-        symbol: row.symbol || '',
-        entryTime: new Date(row.entryTime || ''),
-        exitTime: new Date(row.exitTime || ''),
-        entryPrice: parseFloat(row.entryPrice || '0'),
-        exitPrice: parseFloat(row.exitPrice || '0'),
-        positionSize: parseFloat(row.positionSize || '0'),
-        profitLoss: parseFloat(row.profitLoss || '0'),
-        riskReward: parseFloat(row.riskReward || '0'),
-        session: (row.session || 'london') as 'london' | 'new-york' | 'tokyo' | 'sydney' | 'overlap',
-        direction: row.direction as 'long' | 'short',
-        setupType: (row.setupType || 'breakout') as 'breakout' | 'pullback' | 'reversal' | 'scalp' | 'swing' | 'position',
-        emotionalState: (row.emotionalState || 'calm') as 'calm' | 'fearful' | 'greedy' | 'revenge' | 'overconfident',
-        holdingTime: parseFloat(row.holdingTime || '0'),
-        maxDrawdown: parseFloat(row.maxDrawdown || '0'),
-        maxProfit: parseFloat(row.maxProfit || '0'),
-        exitReason: (row.exitReason || 'manual') as 'stop-loss' | 'take-profit' | 'manual' | 'margin-call' | 'time-exit',
-        commission: parseFloat(row.commission || '0'),
-        swap: parseFloat(row.swap || '0'),
-        tags: row.tags ? row.tags.split(',').map(t => t.trim()) : [],
-        notes: row.notes || '',
-        ruleViolations: [],
-        marketConditions: {
-          trend: 'neutral' as const,
-          volatility: 'medium' as const,
-          session: (row.session || 'london') as 'london' | 'new-york' | 'tokyo' | 'sydney' | 'overlap'
-        }
-      }));
-      
-      dataManager.setUploadedTrades(trades);
-      setValidationResult({
-        isValid: true,
-        errors: [],
-        warnings: [`Successfully imported ${trades.length} trades`],
-        rowCount: trades.length,
-        duplicates: 0
-      });
-    }
-  }, [validationResult, parsedData]);
-
   const resetUpload = useCallback(() => {
     setFile(null);
     setValidationResult(null);
@@ -393,12 +318,25 @@ export default function EnhancedCSVUpload() {
   }, []);
 
   const clearUploadedData = useCallback(() => {
-    dataManager.clearUploadedData();
+    // Clear CSVManager data
+    localStorage.removeItem('tradient_trades_csv');
     resetUpload();
+    
+    // Trigger storage event to notify other components
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'tradient_trades_csv',
+      newValue: null
+    }));
+    
+    // Also trigger custom event for same-tab updates
+    window.dispatchEvent(new CustomEvent('tradesUpdated', {
+      detail: { tradesCount: 0 }
+    }));
+    
     setValidationResult({
       isValid: true,
       errors: [],
-      warnings: ['All uploaded data cleared. Using mock data.'],
+      warnings: ['All uploaded data cleared. Using sample data.'],
       rowCount: 0,
       duplicates: 0
     });
@@ -662,41 +600,20 @@ export default function EnhancedCSVUpload() {
 
                       <div className="mt-4 space-y-2">
                         <div className="flex flex-wrap gap-2">
-                          <span className="text-blue-700 dark:text-blue-500 font-medium">Symbols:</span>
-                          {dataSummary.symbols.slice(0, 5).map(symbol => (
-                            <Badge key={symbol} variant="outline" className="text-xs">
-                              {symbol}
+                          <span className="text-blue-700 dark:text-blue-500 font-medium">Pairs:</span>
+                          {dataSummary.pairs.slice(0, 5).map(pair => (
+                            <Badge key={pair} variant="outline" className="text-xs">
+                              {pair}
                             </Badge>
                           ))}
-                          {dataSummary.symbols.length > 5 && (
+                          {dataSummary.pairs.length > 5 && (
                             <Badge variant="outline" className="text-xs">
-                              +{dataSummary.symbols.length - 5} more
+                              +{dataSummary.pairs.length - 5} more
                             </Badge>
                           )}
                         </div>
                       </div>
                     </motion.div>
-                  )}
-
-                  {/* Import Actions */}
-                  {validationResult.isValid && dataSummary && (
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={importData}
-                        className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                      >
-                        <Database className="h-4 w-4" />
-                        Import {dataSummary.totalTrades} Trades
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={resetUpload}
-                      >
-                        <X className="h-4 w-4" />
-                        Cancel
-                      </Button>
-                    </div>
                   )}
                 </motion.div>
               )}
@@ -706,10 +623,10 @@ export default function EnhancedCSVUpload() {
             <div className="p-4 bg-muted/30 rounded-lg">
               <h5 className="font-semibold mb-3">Expected CSV Format:</h5>
               <div className="text-xs font-mono bg-background p-3 rounded border overflow-x-auto">
-                tradeId,symbol,entryTime,exitTime,entryPrice,exitPrice,positionSize,profitLoss,riskReward,session,direction,setupType,emotionalState,holdingTime,maxDrawdown,maxProfit,exitReason,commission,swap,tags,notes
+                id,date,pair,direction,entry,exit,positionSize,result,rr,ruleViolation,notes
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                Required fields: tradeId, symbol, entryTime, exitTime, entryPrice, exitPrice
+                Required fields: id, date, pair, direction, entry, exit
               </p>
             </div>
           </TabsContent>
@@ -727,23 +644,23 @@ export default function EnhancedCSVUpload() {
                       <div>
                         <h4 className="font-medium">Data Status</h4>
                         <p className="text-sm text-muted-foreground">
-                          {dataManager.isUsingUploaded() ? 'Using uploaded CSV data' : 'Using mock data'}
+                          {localStorage.getItem('tradient_trades_csv') ? 'Using uploaded CSV data' : 'Using sample data'}
                         </p>
                       </div>
                       <Badge 
-                        variant={dataManager.isUsingUploaded() ? "default" : "secondary"}
+                        variant={localStorage.getItem('tradient_trades_csv') ? "default" : "secondary"}
                         className="ml-2"
                       >
-                        {dataManager.isUsingUploaded() ? 'Active' : 'Mock'}
+                        {localStorage.getItem('tradient_trades_csv') ? 'Active' : 'Sample'}
                       </Badge>
                     </div>
                     
                   <div>
-                    {dataManager.isUsingUploaded() && (
+                    {localStorage.getItem('tradient_trades_csv') && (
                       <div className="text-sm text-muted-foreground">
                         <p>• All analytics are using your uploaded data</p>
-                        <p>• Trade replay and journal show real trades</p>
-                        <p>• You can switch back to mock data anytime</p>
+                        <p>• Trade journal shows real trades</p>
+                        <p>• You can switch back to sample data anytime</p>
                       </div>
                     )}
                   </div>
@@ -761,77 +678,83 @@ export default function EnhancedCSVUpload() {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        const trades = dataManager.getTrades();
-                        const csvContent = [
-                          'tradeId,symbol,entryTime,exitTime,entryPrice,exitPrice,positionSize,profitLoss,riskReward,session,direction,setupType,emotionalState,holdingTime,maxDrawdown,maxProfit,exitReason,commission,swap,tags,notes',
-                          ...trades.map(trade => [
-                            trade.tradeId,
-                            trade.symbol,
-                            trade.entryTime.toISOString(),
-                            trade.exitTime.toISOString(),
-                            trade.entryPrice,
-                            trade.exitPrice,
-                            trade.positionSize,
-                            trade.profitLoss,
-                            trade.riskReward,
-                            trade.session,
-                            trade.direction,
-                            trade.setupType,
-                            trade.emotionalState,
-                            trade.holdingTime,
-                            trade.maxDrawdown,
-                            trade.maxProfit,
-                            trade.exitReason,
-                            trade.commission,
-                            trade.swap,
-                            trade.tags.join(','),
-                            trade.notes
-                          ]).join(',')
-                        ].join('\n');
-                        
-                        const blob = new Blob([csvContent], { type: 'text/csv' });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `trading_data_${new Date().toISOString().split('T')[0]}.csv`;
-                        a.click();
-                        window.URL.revokeObjectURL(url);
+                        const trades = CSVManager.loadFromLocalStorage();
+                        if (trades.length > 0) {
+                          CSVManager.downloadCSV(trades, `trading_data_${new Date().toISOString().split('T')[0]}.csv`);
+                        }
                       }}
                       className="w-full"
-                      disabled={!dataManager.isUsingUploaded()}
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      Export Current Data
+                      Download Current Data
                     </Button>
                   </div>
                 </div>
                 </CardContent>
               </Card>
-
+              
               <Card className="glass-card border-0">
                 <CardHeader>
-                  <CardTitle className="text-lg">Data Statistics</CardTitle>
+                  <CardTitle className="text-lg">Sample CSV Generator</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  {dataManager.isUsingUploaded() ? (
-                    <div className="space-y-3">
-                      <div className="text-sm">
-                        <span className="font-medium">Total Trades:</span> {dataManager.getTrades().length}
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium">Data Source:</span> CSV Upload
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium">Last Updated:</span> {new Date().toLocaleString()}
-                      </div>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Download a sample CSV file with the correct format to use as a template for your data.
+                    </p>
+                    
+                    <Button
+                      onClick={() => {
+                        const sampleData = [
+                          {
+                            id: 'TR-001',
+                            date: '2025-01-15',
+                            pair: 'EUR/USD',
+                            direction: 'long' as const,
+                            entry: 1.08567,
+                            exit: 1.08923,
+                            positionSize: 0.10,
+                            result: 35.60,
+                            rr: 1.8,
+                            ruleViolation: null,
+                            notes: 'Pullback trade during London session'
+                          },
+                          {
+                            id: 'TR-002',
+                            date: '2025-01-15',
+                            pair: 'GBP/USD',
+                            direction: 'short' as const,
+                            entry: 1.26345,
+                            exit: 1.26012,
+                            positionSize: 0.15,
+                            result: -49.95,
+                            rr: 1.2,
+                            ruleViolation: 'Late Entry',
+                            notes: 'Breakout failure during NY session'
+                          }
+                        ];
+                        
+                        CSVManager.downloadCSV(sampleData, 'sample_trading_data.csv');
+                      }}
+                      className="w-full"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Sample CSV
+                    </Button>
+                    
+                    <div className="p-3 bg-muted/30 rounded-lg">
+                      <h5 className="font-medium text-sm mb-2">Format Guide:</h5>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        <li>• <strong>id:</strong> Unique trade identifier</li>
+                        <li>• <strong>date:</strong> Trade date (YYYY-MM-DD)</li>
+                        <li>• <strong>pair:</strong> Currency pair (e.g., EUR/USD)</li>
+                        <li>• <strong>direction:</strong> "long" or "short"</li>
+                        <li>• <strong>entry/exit:</strong> Price levels</li>
+                        <li>• <strong>result:</strong> Profit/Loss amount</li>
+                        <li>• <strong>rr:</strong> Risk/Reward ratio</li>
+                      </ul>
                     </div>
-                  ) : (
-                    <div className="text-center text-muted-foreground">
-                      <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No uploaded data available</p>
-                      <p className="text-sm">Import CSV data to enable management features</p>
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </div>

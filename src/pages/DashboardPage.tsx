@@ -16,9 +16,33 @@ import { useState, useEffect } from 'react';
 export default function DashboardPage() {
   const [currentTrades, setCurrentTrades] = useState<CSVTradeData[]>([]);
 
-  // Load CSV data on mount
+  // Load CSV data on mount and listen for updates
   useEffect(() => {
     loadTrades();
+
+    // Listen for storage events (cross-tab updates)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tradient_trades_csv') {
+        console.log('Storage event detected, reloading trades...');
+        loadTrades();
+      }
+    };
+
+    // Listen for custom events (same-tab updates)
+    const handleTradesUpdate = (e: CustomEvent) => {
+      console.log('Trades update event detected, reloading trades...', e.detail);
+      loadTrades();
+    };
+
+    // Add event listeners
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('tradesUpdated', handleTradesUpdate as EventListener);
+
+    // Cleanup listeners on unmount
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('tradesUpdated', handleTradesUpdate as EventListener);
+    };
   }, []);
 
   const loadTrades = () => {

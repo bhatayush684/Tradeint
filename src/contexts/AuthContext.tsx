@@ -16,10 +16,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (stored) {
       return JSON.parse(stored);
     }
-    // Auto-authenticate for development
-    if (import.meta.env.DEV) {
-      return { email: 'demo@tradient.com', name: 'Demo User' };
-    }
     return null;
   });
 
