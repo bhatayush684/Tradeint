@@ -9,16 +9,22 @@
 # in ai_router.py without going through this file.
 
 import os
-from openai import OpenAI
+from dotenv import load_dotenv
 import json
+from openai import OpenAI
 from models import TradeInput, TradeMetrics, GradeResult, DimensionScore
 from metrics import calculate_metrics, detect_patterns
 
+# Load env vars
+load_dotenv()
+
 MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
-client = OpenAI(                                   
-    base_url = "https://openrouter.ai/api/v1",
-    api_key  = os.environ.get("OPENROUTER_API_KEY"),
+# Initialize client safely
+api_key = os.environ.get("OPENROUTER_API_KEY")
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=api_key if api_key else "missing_key",
 )
 
 SYSTEM_PROMPT = """

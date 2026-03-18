@@ -26,10 +26,11 @@ router = APIRouter(prefix="/ai")
 # Using the free Llama-3 model on OpenRouter
 MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
-# Initialize OpenAI client pointed to OpenRouter
+# Initialize OpenAI client safely
+api_key = os.environ.get("OPENROUTER_API_KEY")
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=os.environ.get("OPENROUTER_API_KEY"),
+    api_key=api_key if api_key else "missing_key",
 )
 
 # ── Single request envelope ────────────────────────────────────────────────────
