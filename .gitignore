@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+ai-api/__pycache__/
+ai-api/*.pyc
+ai-api/.env
+ai-api/.venv
+ai-api/env/
+ai-api/venv/
+ai-api/.pytest_cache/
