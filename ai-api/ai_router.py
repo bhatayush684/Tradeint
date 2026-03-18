@@ -3,37 +3,36 @@
 # The only file your frontend talks to.
 # Exposes one endpoint: POST /ai/query
 # Routes each request type to the right handler.
-# Each handler builds a prompt, calls Claude, and returns structured JSON.
 #
 # To add a new AI capability: write a handle_X function, add it to HANDLERS.
-# Nothing else needs to change.
 import os
-from dotenv import load_dotenv
-load_dotenv()
-from fastapi import APIRouter, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Literal, Any
 import json
+from typing import Literal, Any
+from dotenv import load_dotenv
+from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from openai import OpenAI
 
+# Local imports
 from grader import grade_trade
 from models import TradeInput
 
+# Load environment variables from .env
+load_dotenv()
+
 router = APIRouter(prefix="/ai")
 
-MODEL  = "meta-llama/llama-3.3-70b-instruct:free"
+# Using the free Llama-3 model on OpenRouter
+MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
-client = OpenAI(                               
-    base_url = "https://openrouter.ai/api/v1",
-    api_key  = os.environ.get("OPENROUTER_API_KEY"),
+# Initialize OpenAI client pointed to OpenRouter
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ.get("OPENROUTER_API_KEY"),
 )
 
-
 # ── Single request envelope ────────────────────────────────────────────────────
-# Frontend always sends: { "type": "...", "payload": { ... } }
-
 class AIRequest(BaseModel):
     type: Literal[
         "grade_trade",
@@ -50,30 +49,30 @@ class AIRequest(BaseModel):
 
 def handle_grade_trade(payload: dict) -> dict:
     """
-    Grades a single trade.
-    Calls grader.py which runs metrics.py then Claude.
-    payload: { trade: TradeInput fields }
-    returns: GradeResult
+    Grades a single trade using the logic in grader.py.
     """
-    trade = TradeInput(**payload["trade"])
-    return grade_trade(trade).dict()
+    try:
+        trade = TradeInput(**payload["trade"])
+        return grade_trade(trade).dict()
+    except Exception as e:
+        print(f"Error in grade_trade: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def handle_analyse_performance(payload: dict) -> dict:
     """
-    Analyses a batch of already-graded trades and answers a question about them.
+    Analyses a batch of graded trades to find behavioral patterns.
     """
-    trades   = payload["trades"]
+    trades = payload.get("trades", [])
     question = payload.get("question", "What is my biggest weakness?")
 
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key or api_key == "your_key_here":
-        # Professional mock response based on trade count/avg score
+        # Professional mock response
         avg_score = sum(t["overall_score"] for t in trades) / len(trades) if trades else 0
         weakness = "Consistency in risk-to-reward ratios" if avg_score > 70 else "Over-leveraging on impulsive setups"
-        
         return {
-            "answer": f"Based on your last {len(trades)} trades, you are showing strong { 'discipline' if avg_score > 75 else 'potential' }. Your execution is reliable, but there's room to optimize your exits.",
+            "answer": f"Based on your last {len(trades)} trades, you're showing good discipline. Your execution is reliable, but exits could be optimized.",
             "top_weakness": weakness,
             "recommendations": [
                 "Strictly adhere to 1:2 Minimum Risk/Reward",
@@ -83,34 +82,24 @@ def handle_analyse_performance(payload: dict) -> dict:
             "positive_patterns": ["Patient entry selection", "Good stop-loss placement"]
         }
 
-    # Compress trades to fit context window
-    summary = [
-        {
-            "grade":     t["letter_grade"],
-            "score":     t["overall_score"],
-            "patterns":  t["patterns"],
-            "pnl":       t["metrics"]["pnl"],
-        }
-        for t in trades
-    ]
-
     try:
+        summary = [{"grade": t["letter_grade"], "score": t["overall_score"], "patterns": t["patterns"]} for t in trades]
         response = client.chat.completions.create(
-            model      = MODEL,
-            messages   = [{
+            model=MODEL,
+            messages=[{
                 "role": "user",
-                "content": f"Graded trades: {json.dumps(summary)}. Question: {question}. Respond in JSON."
+                "content": f"Analyze these trades for psychological patterns: {json.dumps(summary)}. Question: {question}. Respond in JSON."
             }]
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
-        print(f"AI Performance analysis failed: {e}")
-        return {"answer": "AI analysis unavailable (Check API Key).", "top_weakness": "N/A", "recommendations": [], "positive_patterns": []}
+        print(f"AI Performance analysis error: {e}")
+        return {"answer": "Analysis unavailable.", "top_weakness": "N/A", "recommendations": [], "positive_patterns": []}
 
 
 def handle_pre_trade_check(payload: dict) -> dict:
     """
-    Scores a setup the trader is considering BEFORE entering.
+    Evaluates a trade setup before entry.
     """
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key or api_key == "your_key_here":
@@ -119,56 +108,85 @@ def handle_pre_trade_check(payload: dict) -> dict:
             "take_trade": True,
             "reasons_for": ["Strong trend alignment", "Clear support level"],
             "reasons_against": ["Low volume area"],
-            "what_to_watch": "Watch for a 5-minute close above the entry candle."
+            "what_to_watch": "Watch for a 5-minute candle close above the entry box."
         }
-    
-    # ... (Actual AI call would go here, omitting for brevity in this mock-fix)
-    return {"reply": "Actual AI logic would be here."}
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{
+                "role": "user",
+                "content": f"Score this trade setup (0-100): {payload.get('description', 'No description')}. Account: ${payload.get('account_size', 10000)}. Return JSON."
+            }]
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        return {"score": 50, "take_trade": False, "reasons_for": [], "reasons_against": ["AI check failed"], "what_to_watch": "N/A"}
 
 
 def handle_coaching_chat(payload: dict) -> dict:
+    """
+    General AI coaching chat.
+    """
+    message = payload.get("message", "")
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key or api_key == "your_key_here":
-        return {"reply": "I am currently in 'Local Analysis Mode' because no API key was found. I can still help you with general trading rules, but for personalized deep-learning insights, please add your OpenRouter key to the .env file!"}
-    
-    # ... (Original AI logic)
-    return {"reply": "AI coaching active."}
+        return {"reply": "I am in local mode. Please add an OpenRouter API key for deep personalized AI coaching!"}
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": message}]
+        )
+        return {"reply": response.choices[0].message.content}
+    except Exception as e:
+        return {"reply": f"Could not connect to AI: {str(e)}"}
 
 
 def handle_journal_reflection(payload: dict) -> dict:
+    """
+    Analyzes a journal entry for lessons and mood.
+    """
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key or api_key == "your_key_here":
         return {
             "mood_score": 7,
-            "key_lesson": "Patience is as important as the setup itself.",
-            "mistakes": ["Missed the morning breakout due to hesitation"],
-            "what_went_well": ["Stayed within daily loss limit"],
-            "tomorrow_focus": "Wait for 2nd candle confirmation"
+            "key_lesson": "Patience is key.",
+            "mistakes": ["Impulsive entry"],
+            "what_went_well": ["Followed stop loss"],
+            "tomorrow_focus": "Wait for confirmation"
         }
-    # ...
-    return {"reply": "Journal analyzed."}
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{
+                "role": "user",
+                "content": f"Extract lessons from this journal: {payload.get('entry', '')}. Return JSON."
+            }]
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        return {"mood_score": 5, "key_lesson": "N/A", "mistakes": [], "what_went_well": [], "tomorrow_focus": "N/A"}
 
 
 def handle_explain_grade(payload: dict) -> dict:
     """
-    Rewrites an existing GradeResult in plain English for the trader.
+    Explains a specific trade grade in plain English.
     """
-    g = payload["grade"]
+    g = payload.get("grade", {})
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key or api_key == "your_key_here":
-        return {"explanation": f"This trade scored a {g['letter_grade']}. Your entry was {g['entry_quality']['score']}/25. Tomorrow, focus on waiting for your setup to fully form."}
+        return {"explanation": f"You scored a {g.get('letter_grade', 'N/A')}. Focus on improving your thesis documentation."}
 
     try:
         response = client.chat.completions.create(
-            model      = MODEL,
-            messages   = [{
-                "role": "user",
-                "content": f"Explain this grade: {json.dumps(g)}. Be brief."
-            }]
+            model=MODEL,
+            messages=[{"role": "user", "content": f"Explain this trade grade in 2 sentences: {json.dumps(g)}"}]
         )
         return {"explanation": response.choices[0].message.content}
     except Exception as e:
-        return {"explanation": "Explanation unavailable (Check API Key)."}
+        return {"explanation": "Explanation failed."}
 
 
 # ── Handler registry ───────────────────────────────────────────────────────────
@@ -193,18 +211,23 @@ async def ai_query(request: AIRequest):
     try:
         return handler(request.payload)
     except Exception as e:
-        print(f"Handler Error [{request.type}]: {e}")
+        print(f"Server Error in {request.type}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── App entry point ────────────────────────────────────────────────────────────
-# Run with: uvicorn ai_router:app --reload --port 8000
+# ── App configuration ──────────────────────────────────────────────────────────
 
-app = FastAPI(title="Trade Grader AI")
+app = FastAPI(title="Tradient AI Backend")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins  = ["*"],   # Tighten this to your domain in production
-    allow_methods  = ["*"],
-    allow_headers  = ["*"],
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 app.include_router(router)
+
+@app.get("/")
+async def root():
+    return {"status": "online", "service": "Tradient AI API"}
