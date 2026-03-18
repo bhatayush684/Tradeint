@@ -40,7 +40,10 @@ export interface AnalysePerformanceResult {
   positive_patterns: string[];
 }
 
-const API_BASE_URL = 'http://localhost:8000/ai/query';
+const RAW_API_URL = import.meta.env.VITE_AI_API_URL || 'http://localhost:8000';
+// Remove trailing slash if present to avoid double-slashes in the final URL
+const CLEAN_API_URL = RAW_API_URL.endsWith('/') ? RAW_API_URL.slice(0, -1) : RAW_API_URL;
+const API_BASE_URL = `${CLEAN_API_URL}/ai/query`;
 
 export const AIApiService = {
   /**
