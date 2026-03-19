@@ -37,7 +37,7 @@ export default function CSVUploadPage() {
                 CSV Upload
               </h1>
               <p className="text-lg text-muted-foreground font-medium mt-1">
-                Import your trade history — new uploads replace all existing data
+                Import your trade history
               </p>
             </div>
           </div>
