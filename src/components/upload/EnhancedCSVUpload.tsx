@@ -348,7 +348,7 @@ export default function EnhancedCSVUpload() {
                 }
                 setParsedData([]);
 
-                const msg = `Successfully completely overwritten existing dataset with ${trades.length} new trades.`;
+                const msg = `Successfully uploaded file. Database processed ${trades.length} trades and appended the new ones.`;
 
                 setValidationResult({
                   isValid: true,
