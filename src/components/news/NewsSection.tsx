@@ -240,6 +240,7 @@ export default function NewsSection() {
                             </span>
                           </div>
 
+                          {/* Redirection disabled as per user request */}
                         </div>
 
                         {/* Symbols */}
