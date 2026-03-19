@@ -24,9 +24,9 @@ export default function NewsPage() {
     initializeNewsService();
   }, []);
 
-  const loadTrades = () => {
+  const loadTrades = async () => {
     try {
-      const csvTrades = CSVManager.loadFromLocalStorage();
+      const csvTrades = await CSVManager.loadFromAPI();
       setTrades(csvTrades);
     } catch (error) {
       console.error('Error loading trades:', error);

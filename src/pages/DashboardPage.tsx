@@ -22,9 +22,9 @@ export default function DashboardPage() {
   const [aiInsights, setAiInsights] = useState<AnalysePerformanceResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const loadTrades = useCallback(() => {
+  const loadTrades = useCallback(async () => {
     try {
-      const csvTrades = CSVManager.loadFromLocalStorage();
+      const csvTrades = await CSVManager.loadFromAPI();
       setCurrentTrades(
         csvTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       );

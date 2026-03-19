@@ -1,0 +1,22 @@
+[0m[0m
+[0m[4mC:\Users\bhata\OneDrive\Desktop\tradient\Tradeint\src\components\upload\EnhancedCSVUpload.tsx[24m[0m
+[0m  [2m134:46[22m  [31merror[39m  Unexpected any. Specify a different type            [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m153:25[22m  [31merror[39m  Unexpected any. Specify a different type            [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m167:30[22m  [31merror[39m  Unexpected any. Specify a different type            [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m173:11[22m  [31merror[39m  'entry' is never reassigned. Use 'const' instead    [2mprefer-const[22m[0m
+[0m  [2m174:11[22m  [31merror[39m  'exit' is never reassigned. Use 'const' instead     [2mprefer-const[22m[0m
+[0m  [2m175:11[22m  [31merror[39m  'result' is never reassigned. Use 'const' instead   [2mprefer-const[22m[0m
+[0m  [2m177:11[22m  [31merror[39m  'rr' is never reassigned. Use 'const' instead       [2mprefer-const[22m[0m
+[0m  [2m192:11[22m  [31merror[39m  'dateStr' is never reassigned. Use 'const' instead  [2mprefer-const[22m[0m
+[0m[0m
+[0m[4mC:\Users\bhata\OneDrive\Desktop\tradient\Tradeint\src\services\AIApiService.ts[24m[0m
+[0m   [2m27:12[22m  [31merror[39m  Unexpected any. Specify a different type                                                                               [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m122:43[22m  [31merror[39m  Unexpected any. Specify a different type                                                                               [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m139:16[22m  [31merror[39m  This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain  [2mno-dupe-else-if[22m[0m
+[0m[0m
+[0m[4mC:\Users\bhata\OneDrive\Desktop\tradient\Tradeint\src\services\NewsService.ts[24m[0m
+[0m  [2m101:37[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[31m[1m✖ 12 problems (12 errors, 0 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  5 errors and 0 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

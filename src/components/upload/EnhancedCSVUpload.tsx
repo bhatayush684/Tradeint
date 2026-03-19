@@ -335,17 +335,10 @@ export default function EnhancedCSVUpload() {
             setUploadProgress(80);
 
             // Yield again before safely saving
-            setTimeout(() => {
+            setTimeout(async () => {
               if (validation.isValid) {
-                // Merge with existing trades — new unique trades are added on top
-                const existingTrades = CSVManager.loadFromLocalStorage();
-                const existingIds = new Set(existingTrades.map(t => t.id));
-                const newUniqueTrades = trades.filter(t => !existingIds.has(t.id));
-
-                const mergedTrades = [...newUniqueTrades, ...existingTrades]
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-                CSVManager.saveToLocalStorage(mergedTrades);
+                // Global overwrite behavior: completely replace database with new CSV trades
+                await CSVManager.saveToAPI(trades);
 
                 setHasImported(true);
                 setIsDuplicateFile(false);
@@ -355,16 +348,14 @@ export default function EnhancedCSVUpload() {
                 }
                 setParsedData([]);
 
-                const msg = existingTrades.length === 0
-                  ? `Successfully imported ${newUniqueTrades.length} trades.`
-                  : `Added ${newUniqueTrades.length} new trades (${mergedTrades.length} total).`;
+                const msg = `Successfully completely overwritten existing dataset with ${trades.length} new trades.`;
 
                 setValidationResult({
                   isValid: true,
                   errors: [],
                   warnings: [msg],
-                  rowCount: newUniqueTrades.length,
-                  duplicates: trades.length - newUniqueTrades.length,
+                  rowCount: trades.length,
+                  duplicates: 0,
                 });
               }
 
@@ -822,8 +813,8 @@ export default function EnhancedCSVUpload() {
                     
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        const trades = CSVManager.loadFromLocalStorage();
+                      onClick={async () => {
+                        const trades = await CSVManager.loadFromAPI();
                         if (trades.length > 0) {
                           CSVManager.downloadCSV(trades, `trading_data_${new Date().toISOString().split('T')[0]}.csv`);
                         }

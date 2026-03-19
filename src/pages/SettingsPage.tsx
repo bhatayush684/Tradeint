@@ -61,10 +61,9 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  // Export User Trade Data
-  const handleExportData = () => {
+  const handleExportData = async () => {
     try {
-      const trades = CSVManager.loadFromLocalStorage();
+      const trades = await CSVManager.loadFromAPI();
       if (trades.length === 0) {
         toast.error('No Data Found', {
           description: 'You do not have any trades saved to export.',

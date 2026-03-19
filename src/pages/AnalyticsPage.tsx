@@ -46,20 +46,20 @@ export default function AnalyticsPage() {
   const [trades, setTrades] = useState<CSVTradeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadTrades = useCallback(() => {
+  const loadTrades = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Load existing trades from CSVManager
-      const csvTrades = CSVManager.loadFromLocalStorage();
+      // Load existing trades from API
+      const csvTrades = await CSVManager.loadFromAPI();
       
       // If no data exists, initialize with sample trades
       if (csvTrades.length === 0) {
         console.log('No trades found, initializing with sample data...');
         const sampleTrades = generateSampleTrades();
-        CSVManager.saveToLocalStorage(sampleTrades);
+        await CSVManager.saveToAPI(sampleTrades);
         setTrades(sampleTrades);
       } else {
-        console.log(`Loaded ${csvTrades.length} trades from CSV data`);
+        console.log(`Loaded ${csvTrades.length} trades from API`);
         setTrades(csvTrades);
       }
     } catch (error) {

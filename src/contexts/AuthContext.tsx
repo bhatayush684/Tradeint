@@ -19,20 +19,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
 
-  const login = useCallback((email: string, _password: string) => {
-    const u = { email, name: email.split('@')[0] };
-    localStorage.setItem('tradient_user', JSON.stringify(u));
-    setUser(u);
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Login failed');
+      }
+      const data = await res.json();
+      localStorage.setItem('tradient_auth_token', data.token);
+      localStorage.setItem('tradient_user', JSON.stringify(data.user));
+      setUser(data.user);
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   }, []);
 
-  const signup = useCallback((email: string, _password: string, name: string) => {
+  const signup = useCallback(async (email: string, password: string, name: string) => {
+    // For now, fallback to demo login logic or use same endpoint
+    await login(email, password); 
     const u = { email, name };
     localStorage.setItem('tradient_user', JSON.stringify(u));
     setUser(u);
-  }, []);
+  }, [login]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('tradient_user');
+    localStorage.removeItem('tradient_auth_token');
     setUser(null);
   }, []);
 

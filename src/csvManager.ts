@@ -106,53 +106,44 @@ class CSVManager {
     }
   }
 
-  /**
-   * Save trades as JSON to localStorage — much faster than CSV serialization
-   * for structured data. CSV conversion is only used for export/download.
-   */
-  static saveToLocalStorage(trades: CSVTradeData[]): void {
+  static async saveToAPI(trades: CSVTradeData[]): Promise<void> {
     try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(trades));
-      
-      // Single custom event for same-tab updates (no StorageEvent needed)
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/trades/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trades)
+      });
+      if (!response.ok) throw new Error('Failed to upload trades to API');
+
       window.dispatchEvent(new CustomEvent('tradesUpdated', {
         detail: { tradesCount: trades.length }
       }));
     } catch (error) {
-      console.error('Error saving trades to localStorage:', error);
-      // Handle quota exceeded — try trimming old data
-      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        console.warn('localStorage quota exceeded. Consider reducing data size.');
-      }
+      console.error('Error saving trades to API:', error);
+      throw error;
     }
   }
 
-  static loadFromLocalStorage(): CSVTradeData[] {
+  static async loadFromAPI(): Promise<CSVTradeData[]> {
     try {
-      const raw = localStorage.getItem(this.STORAGE_KEY);
-      if (!raw) return [];
-
-      // Try JSON first (new format), fall back to CSV (old format)
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      } catch {
-        // Not valid JSON — must be old CSV format, parse it
-        return this.parseFromCSV(raw);
-      }
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/trades`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data;
     } catch (error) {
-      console.error('Error loading trades from localStorage:', error);
+      console.error('Error loading trades from API:', error);
+      return [];
     }
-    return [];
   }
 
-  static addTradeToCSV(trade: CSVTradeData): void {
-    const existingTrades = this.loadFromLocalStorage();
-    // Add new trades at the beginning so the most recent trades show first
+  static async addTradeToAPI(trade: CSVTradeData): Promise<void> {
+    // Note: The global overwrite logic requires all trades to be pulled and re-uploaded currently
+    // Alternatively, a POST /api/trades could be created for single trades. For now, fetch and push:
+    const existingTrades = await this.loadFromAPI();
     const updatedTrades = [trade, ...existingTrades];
-    this.saveToLocalStorage(updatedTrades);
+    await this.saveToAPI(updatedTrades);
   }
 
   static convertTradeToCSV(trade: Record<string, unknown>): CSVTradeData {

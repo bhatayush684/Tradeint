@@ -46,10 +46,10 @@ export default function JournalPage() {
     };
   }, []);
 
-  const loadTrades = () => {
+  const loadTrades = async () => {
     setIsLoading(true);
     try {
-      const csvTrades = CSVManager.loadFromLocalStorage();
+      const csvTrades = await CSVManager.loadFromAPI();
       // Sort by date (newest first)
       csvTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setTrades(csvTrades);
@@ -61,10 +61,10 @@ export default function JournalPage() {
     }
   };
 
-  const handleAddTrade = (newTrade: CSVTradeData) => {
+  const handleAddTrade = async (newTrade: CSVTradeData) => {
     try {
-      // Add to CSV storage
-      CSVManager.addTradeToCSV(newTrade);
+      // Add to API storage
+      await CSVManager.addTradeToAPI(newTrade);
       
       // Reload trades to update display
       loadTrades();
@@ -73,10 +73,10 @@ export default function JournalPage() {
     }
   };
 
-  const handleRefreshData = () => {
+  const handleRefreshData = async () => {
     // Clear and reload data
-    CSVManager.saveToLocalStorage([]);
-    loadTrades();
+    await CSVManager.saveToAPI([]);
+    await loadTrades();
   };
 
   const handleExportCSV = () => {
