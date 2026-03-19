@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Home,
   Activity,
-  Sparkles,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,13 @@ const navigation = [
     href: '/journal', 
     icon: BookOpen,
     description: 'Trade records',
+    badge: null,
+  },
+  {
+    name: 'CSV Upload',
+    href: '/csv-upload',
+    icon: Upload,
+    description: 'Import trade data',
     badge: null,
   },
   { 

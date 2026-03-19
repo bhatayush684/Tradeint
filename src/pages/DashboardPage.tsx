@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, Brain, Calendar, Target, Activity, DollarSign, Award, AlertCircle, BarChart3, Loader2, Sparkles } from 'lucide-react';
+import { TrendingUp, Brain, Target, DollarSign, AlertCircle, BarChart3, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import CSVManager from '@/csvManager';
 import { CSVTradeData } from '@/csvManager';
 import PerformanceCards from '@/components/PerformanceCards';
@@ -23,16 +25,9 @@ export default function DashboardPage() {
   const loadTrades = useCallback(() => {
     try {
       const csvTrades = CSVManager.loadFromLocalStorage();
-      
-      if (csvTrades.length === 0) {
-        // Initialize with sample trades
-        const sampleTrades = getSampleTrades();
-        CSVManager.saveToLocalStorage(sampleTrades);
-        setCurrentTrades(sampleTrades);
-      } else {
-        // Ensure newest trades appear first
-        setCurrentTrades(csvTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      }
+      setCurrentTrades(
+        csvTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      );
     } catch (error) {
       console.error('Error loading trades:', error);
       setCurrentTrades([]);
@@ -231,22 +226,6 @@ export default function DashboardPage() {
   };
 
 
-  /** Extracted sample trades to a function to keep the component body clean */
-  function getSampleTrades(): CSVTradeData[] {
-    return [
-      { id: 'TR-001', date: '2025-03-15', pair: 'EUR/USD', direction: 'long', entry: 1.0842, exit: 1.0891, positionSize: 1.5, result: 367.50, rr: 2.1, ruleViolation: null, notes: 'Good breakout setup with strong momentum' },
-      { id: 'TR-002', date: '2025-03-14', pair: 'GBP/USD', direction: 'long', entry: 1.2654, exit: 1.2612, positionSize: 1.0, result: -420.00, rr: -1.2, ruleViolation: 'Oversized Position', notes: 'Violated position sizing rules' },
-      { id: 'TR-003', date: '2025-03-13', pair: 'USD/JPY', direction: 'short', entry: 150.42, exit: 149.88, positionSize: 2.0, result: 720.00, rr: 3.1, ruleViolation: null, notes: 'Perfect risk/reward setup' },
-      { id: 'TR-004', date: '2025-03-12', pair: 'AUD/USD', direction: 'long', entry: 0.6543, exit: 0.6578, positionSize: 1.0, result: 350.00, rr: 1.8, ruleViolation: null, notes: 'Clean reversal trade' },
-      { id: 'TR-005', date: '2025-03-11', pair: 'EUR/GBP', direction: 'short', entry: 0.8567, exit: 0.8534, positionSize: 0.5, result: -165.00, rr: -0.8, ruleViolation: 'Traded During News', notes: 'Got caught in news volatility' },
-      { id: 'TR-006', date: '2025-03-10', pair: 'USD/CAD', direction: 'short', entry: 1.3521, exit: 1.3478, positionSize: 1.5, result: 477.00, rr: 2.4, ruleViolation: null, notes: 'Trend continuation trade worked perfectly' },
-      { id: 'TR-007', date: '2025-03-09', pair: 'NZD/USD', direction: 'long', entry: 0.6198, exit: 0.6231, positionSize: 1.0, result: 330.00, rr: 1.6, ruleViolation: null, notes: 'Good risk management' },
-      { id: 'TR-008', date: '2025-03-08', pair: 'GBP/JPY', direction: 'short', entry: 190.54, exit: 191.12, positionSize: 0.8, result: -464.00, rr: -1.5, ruleViolation: 'No Stop Loss', notes: 'Forgot to set stop loss' },
-      { id: 'TR-009', date: '2025-03-07', pair: 'EUR/USD', direction: 'long', entry: 1.0765, exit: 1.0812, positionSize: 2.0, result: 940.00, rr: 2.8, ruleViolation: null, notes: 'Breakout trade with excellent momentum' },
-      { id: 'TR-010', date: '2025-03-06', pair: 'USD/CHF', direction: 'short', entry: 0.8821, exit: 0.8789, positionSize: 1.0, result: 362.00, rr: 1.9, ruleViolation: null, notes: 'Safe haven trade' },
-      { id: 'TR-011', date: '2025-03-05', pair: 'AUD/JPY', direction: 'long', entry: 98.45, exit: 97.88, positionSize: 1.2, result: -684.00, rr: -2.1, ruleViolation: 'Revenge Trade', notes: 'Revenge trading after loss' }
-    ];
-  }
 
   // Memoize metrics so they don't recalculate on every render
   const metrics = useMemo(() => {
@@ -358,7 +337,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
              <Badge variant="outline" className="px-4 py-2 text-xs font-bold border-primary/20 bg-primary/5">
-              {localStorage.getItem('tradient_trades_csv') ? 'LIVE DATA' : 'SAMPLE DATA'}
+              {currentTrades.length > 0 ? 'LIVE DATA' : 'NO DATA'}
             </Badge>
           </div>
         </div>
@@ -392,30 +371,64 @@ export default function DashboardPage() {
         ))}
       </motion.div>
 
-      {/* Main Analysis Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <motion.div variants={itemVariants} className="xl:col-span-1">
-          <DisciplineScoreWidget trades={currentTrades} />
+      {/* Empty State */}
+      {currentTrades.length === 0 ? (
+        <motion.div variants={itemVariants}>
+          <Card className="glass-card border-dashed border-2 border-border/40 bg-card/20">
+            <CardContent className="flex flex-col items-center justify-center py-20 gap-6">
+              <div className="p-5 bg-primary/10 rounded-2xl">
+                <Upload className="h-12 w-12 text-primary" />
+              </div>
+              <div className="text-center max-w-sm">
+                <h3 className="text-2xl font-bold text-foreground mb-2">No Trade Data Yet</h3>
+                <p className="text-muted-foreground text-base leading-relaxed">
+                  Upload your CSV trade history to unlock your dashboard — all analytics, insights, and charts will populate automatically.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <Button asChild size="lg" className="rounded-xl">
+                  <Link to="/csv-upload">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload CSV
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="rounded-xl">
+                  <Link to="/journal">
+                    Add Trade Manually
+                  </Link>
+                </Button>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Supported: any broker CSV export (MetaTrader, cTrader, Tradovate, etc.)</p>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
-        <motion.div variants={itemVariants} className="xl:col-span-2">
-          <BehavioralInsights 
-            trades={currentTrades} 
-            aiInsights={aiInsights}
-            isAnalyzing={isAnalyzing}
-            onAnalyze={handleDeepAIAnalysis}
-          />
-        </motion.div>
-      </div>
+      ) : (
+        <>
+          {/* Main Analysis Section */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            <motion.div variants={itemVariants} className="xl:col-span-1">
+              <DisciplineScoreWidget trades={currentTrades} />
+            </motion.div>
+            <motion.div variants={itemVariants} className="xl:col-span-2">
+              <BehavioralInsights
+                trades={currentTrades}
+                aiInsights={aiInsights}
+                isAnalyzing={isAnalyzing}
+                onAnalyze={handleDeepAIAnalysis}
+              />
+            </motion.div>
+          </div>
 
-      <motion.div variants={itemVariants}>
-        <EnhancedCSVUpload />
-      </motion.div>
 
-      <motion.div variants={itemVariants}>
-        <TradeJournalTable trades={currentTrades} />
-      </motion.div>
-      
-      <NewsSection />
+          <motion.div variants={itemVariants}>
+            <TradeJournalTable trades={currentTrades} />
+          </motion.div>
+
+          <NewsSection />
+        </>
+      )}
     </motion.div>
   );
 }
