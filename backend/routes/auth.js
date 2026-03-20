@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 
 // Upgraded MT5-ready Auth
 router.post('/login', async (req, res) => {
@@ -22,16 +23,20 @@ router.post('/login', async (req, res) => {
         return res.status(401).json({ message: 'Invalid credentials. Password too short.' });
       }
       
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      
       user = new User({
         email,
-        password: password, // In production, use bcrypt here
+        password: hashedPassword,
         name: email.split('@')[0],
-        mt5_webhook_token: uuidv4() // Generate unique token for Phase 1
+        mt5_webhook_token: uuidv4()
       });
       await user.save();
     } else {
       // Basic creditial check
-      if (user.password !== password) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
