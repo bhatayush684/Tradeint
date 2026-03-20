@@ -13,6 +13,8 @@ router.post('/mt5', async (req, res) => {
     const { token, trade } = req.body;
     console.log(`[Webhook] Incoming MT5 payload. Token starts with: ${token ? token.substring(0, 5) : 'NONE'}`);
     if (trade) console.log(`[Webhook] Trade data: ${trade.pair} ${trade.direction} / Result: ${trade.result}`);
+
+    if (!token || !trade) {
       return res.status(400).json({ message: 'Invalid payload: token and trade required' });
     }
 
