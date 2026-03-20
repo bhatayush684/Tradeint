@@ -35,12 +35,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('tradient_auth_token', data.token);
       localStorage.setItem('tradient_user', JSON.stringify(data.user));
       setUser(data.user);
+      toast.success('Successfully connected to Live Trading Engine');
     } catch (error) {
       console.warn('Login API failed, falling back to local demo login:', error);
       const demoUser = { id: 'demo-123', email, name: email.split('@')[0] || 'Demo User' };
       localStorage.setItem('tradient_auth_token', 'demo-token');
       localStorage.setItem('tradient_user', JSON.stringify(demoUser));
       setUser(demoUser);
+      toast.error('Connection Error: Running in Offline Demo Mode', {
+        description: 'MT5 Auto-Sync and persistent data are disabled until you configure your backend URL.',
+        duration: 8000
+      });
     }
   }, []);
 

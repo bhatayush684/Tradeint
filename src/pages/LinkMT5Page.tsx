@@ -42,6 +42,13 @@ export default function LinkMT5Page() {
         }
       } catch (error) {
         console.error('Error fetching token:', error);
+        
+        const isDemo = localStorage.getItem('tradient_auth_token') === 'demo-token';
+        if (isDemo) {
+          setLoading(false); // Stop loading to show the warning UI
+          return;
+        }
+
         toast.error('Network error connecting to backend');
       } finally {
         setLoading(false);
@@ -70,6 +77,34 @@ export default function LinkMT5Page() {
           <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
           <p className="text-muted-foreground animate-pulse text-sm">Securing connection...</p>
         </div>
+      </div>
+    );
+  }
+
+  const isDemo = localStorage.getItem('tradient_auth_token') === 'demo-token';
+
+  if (isDemo) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] px-4">
+        <Card className="max-w-md border-dashed border-2 border-orange-500/30 bg-orange-500/5">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 bg-orange-500/10 rounded-full flex items-center justify-center mb-2">
+              <Settings className="w-6 h-6 text-orange-500" />
+            </div>
+            <CardTitle>Deployment Config Required</CardTitle>
+            <CardDescription>
+              MT5 Auto-Sync requires a live backend connection. You are currently in **Offline Demo Mode**.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              To enable this on your deployed site, you must set the <code className="bg-muted px-1 rounded text-orange-600">VITE_API_URL</code> environment variable to point to your backend server.
+            </p>
+            <Button variant="outline" className="w-full" onClick={() => window.location.href = '/dashboard'}>
+              Back to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
