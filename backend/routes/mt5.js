@@ -45,7 +45,7 @@ router.get('/token', auth, async (req, res) => {
  * @access  Public (So MT5 terminal or users can download it easily)
  */
 router.get('/download', (req, res) => {
-  const filePath = path.join(__dirname, '../../mt5-ea/TradientSync.mq5');
+  const filePath = path.join(__dirname, '../assets/TradientSync.mq5');
   res.download(filePath, 'TradientSync.mq5', (err) => {
     if (err) {
       console.error('Download error:', err);
