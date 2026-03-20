@@ -16,17 +16,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
-export default function LinkMT5Page() {
-  const [token, setToken] = useState<string>('');
-  const [webhookUrl, setWebhookUrl] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const [copiedToken, setCopiedToken] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
   const [debugInfo, setDebugInfo] = useState<{ url: string; error: string }>({ url: '', error: '' });
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const fetchToken = async () => {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       try {
         const authToken = localStorage.getItem('tradient_auth_token');
         const response = await fetch(`${apiUrl}/api/mt5/token`, {
