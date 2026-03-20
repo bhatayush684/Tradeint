@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 const { v4: uuidv4 } = require('uuid');
@@ -37,6 +38,22 @@ router.get('/token', auth, async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined 
     });
   }
+});
+/**
+ * @route   GET /api/mt5/download
+ * @desc    Download the MT5 EA Script
+ * @access  Public (So MT5 terminal or users can download it easily)
+ */
+router.get('/download', (req, res) => {
+  const filePath = path.join(__dirname, '../../mt5-ea/TradientSync.mq5');
+  res.download(filePath, 'TradientSync.mq5', (err) => {
+    if (err) {
+      console.error('Download error:', err);
+      if (!res.headersSent) {
+        res.status(404).json({ message: 'EA script not found on server' });
+      }
+    }
+  });
 });
 
 module.exports = router;

@@ -218,10 +218,15 @@ export default function LinkMT5Page() {
                   <div className="space-y-2">
                     <h3 className="font-semibold text-foreground">Download Expert Advisor</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Download the <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded">TradientSync.ex5</code> script. 
+                      Download the <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded">TradientSync.mq5</code> script. 
                       Place it in your MT5's <code className="bg-muted px-1.5 py-0.5 rounded text-xs">MQL5/Experts</code> folder.
                     </p>
-                    <Button variant="secondary" size="sm" className="mt-2 rounded-lg gap-2 bg-primary/10 hover:bg-primary/20 text-primary border-none">
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="mt-2 rounded-lg gap-2 bg-primary/10 hover:bg-primary/20 text-primary border-none"
+                      onClick={() => window.open(`${apiUrl}/api/mt5/download`, '_blank')}
+                    >
                       <Download className="w-3.5 h-3.5" />
                       Download EA Script
                     </Button>
