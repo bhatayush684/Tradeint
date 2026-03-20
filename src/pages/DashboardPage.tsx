@@ -160,70 +160,79 @@ export default function DashboardPage() {
   }, []);
 
   const handleDeepAIAnalysis = async () => {
-    if (currentTrades.length === 0) return;
-    
-    setIsAnalyzing(true);
-    try {
-      // Try the Railway/external AI backend first (with timeout)
-      const aiApiUrl = import.meta.env.VITE_AI_API_URL;
-      if (aiApiUrl) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  if (currentTrades.length === 0) return;
+  setIsAnalyzing(true);
 
-          const aiInputs = currentTrades.slice(-20).map(t => AIApiService.mapCSVToAITrade(t));
-          const gradedTrades: GradeResult[] = [];
+  try {
+    const aiApiUrl = import.meta.env.VITE_AI_API_URL;
 
-          for (const input of aiInputs) {
-            try {
-              const response = await fetch(`${aiApiUrl.replace(/\/$/, '')}/ai/query`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'grade_trade', payload: { trade: input } }),
-                signal: controller.signal
-              });
-              if (response.ok) {
-                gradedTrades.push(await response.json());
-              }
-            } catch { /* skip individual trade failures */ }
-          }
-          clearTimeout(timeoutId);
+    if (aiApiUrl) {
+      // Step 1 — grade only last 10 trades (not 20, reduces time significantly)
+      const aiInputs = currentTrades
+        .slice(-10)
+        .map(t => AIApiService.mapCSVToAITrade(t));
 
-          if (gradedTrades.length > 0) {
-            const response = await fetch(`${aiApiUrl.replace(/\/$/, '')}/ai/query`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'analyse_performance',
-                payload: { trades: gradedTrades, question: 'Summarize my performance, key weakness, and top recommendations.' }
-              })
-            });
-            if (response.ok) {
-              const analysis = await response.json();
-              setAiInsights(analysis);
-              toast.success('AI Analysis Complete!');
-              return;
+      const gradedTrades: GradeResult[] = [];
+
+      // Grade trades in parallel not sequentially
+      const gradeResults = await Promise.allSettled(
+        aiInputs.map(input =>
+          fetch(`${aiApiUrl.replace(/\/$/, '')}/ai/query`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              type:    'grade_trade',
+              payload: { trade: input }
+            })
+          }).then(r => r.ok ? r.json() : null)
+        )
+      );
+
+      gradeResults.forEach(result => {
+        if (result.status === 'fulfilled' && result.value) {
+          gradedTrades.push(result.value);
+        }
+      });
+
+      if (gradedTrades.length > 0) {
+        // Step 2 — analyse all graded trades
+        // No timeout here — let it complete naturally
+        const response = await fetch(`${aiApiUrl.replace(/\/$/, '')}/ai/query`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            type:    'analyse_performance',
+            payload: {
+              trades:   gradedTrades,
+              question: 'Summarize my performance, key weakness, and top 3 recommendations.'
             }
-          }
-        } catch (e) {
-          // Backend unavailable — fall through to local analysis
-          console.info('AI backend unavailable, using local analysis:', e);
+          })
+        });
+
+        if (response.ok) {
+          const analysis = await response.json();
+          setAiInsights(analysis);
+          toast.success('AI Analysis Complete!');
+          setIsAnalyzing(false);
+          return;
         }
       }
-
-      // Fallback: rich local analysis from real trade data
-      const localAnalysis = buildLocalAnalysis(currentTrades);
-      setAiInsights(localAnalysis);
-      toast.success('AI Analysis Complete!');
-    } catch (error) {
-      // Absolute last resort fallback
-      const localAnalysis = buildLocalAnalysis(currentTrades);
-      setAiInsights(localAnalysis);
-      toast.success('AI Analysis Complete!');
-    } finally {
-      setIsAnalyzing(false);
     }
-  };
+
+    // Fallback to local only if AI truly failed
+    const localAnalysis = buildLocalAnalysis(currentTrades);
+    setAiInsights(localAnalysis);
+    toast.success('Analysis Complete (local)');
+
+  } catch (error) {
+    console.error('Analysis error:', error);
+    const localAnalysis = buildLocalAnalysis(currentTrades);
+    setAiInsights(localAnalysis);
+    toast.success('Analysis Complete (local)');
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
 
 
 
