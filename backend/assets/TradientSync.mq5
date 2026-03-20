@@ -10,7 +10,7 @@
 
 //--- input parameters
 input string   InpToken = "";             // Your Unique Webhook Token
-input string   InpUrl   = "http://localhost:5000/api/webhooks/mt5"; // Webhook URL
+input string   InpUrl   = "https://tradeint.onrender.com/api/webhooks/mt5"; // Webhook URL (USE HTTPS)
 input bool     InpDebug = true;           // Enable Debug Logs
 
 //+------------------------------------------------------------------+
@@ -107,7 +107,8 @@ void SendWebhook(string body)
    uchar post[], result[];
    string result_headers;
    string headers = "Content-Type: application/json\r\n";
-   StringToCharArray(body, post);
+   // Convert string to char array WITHOUT the null terminator \0
+   StringToCharArray(body, post, 0, StringLen(body));
    
    int res = WebRequest("POST", InpUrl, headers, 1000, post, result, result_headers);
    
