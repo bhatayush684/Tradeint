@@ -104,11 +104,12 @@ void SyncDeal(ulong ticket)
 //+------------------------------------------------------------------+
 void SendWebhook(string body)
 {
-   char post[], result[];
+   uchar post[], result[];
+   string result_headers;
    string headers = "Content-Type: application/json\r\n";
    StringToCharArray(body, post);
    
-   int res = WebRequest("POST", InpUrl, headers, 1000, post, result);
+   int res = WebRequest("POST", InpUrl, headers, 1000, post, result, result_headers);
    
    if(res == -1) {
       Print("TRADIENT ERROR: WebRequest failed. Error code: ", GetLastError());
