@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   isAuthenticated: boolean;
