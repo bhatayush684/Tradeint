@@ -106,6 +106,24 @@ class CSVManager {
     }
   }
 
+  private static saveToLocal(trades: CSVTradeData[]): void {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(trades));
+    } catch (e) {
+      console.error('Error saving to localStorage:', e);
+    }
+  }
+
+  private static loadFromLocal(): CSVTradeData[] {
+    try {
+      const data = localStorage.getItem(this.STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.error('Error loading from localStorage:', e);
+      return [];
+    }
+  }
+
   static async saveToAPI(trades: CSVTradeData[]): Promise<void> {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -120,8 +138,11 @@ class CSVManager {
         detail: { tradesCount: trades.length }
       }));
     } catch (error) {
-      console.error('Error saving trades to API:', error);
-      throw error;
+      console.warn('Backend unavailable, saving trades to local storage:', error);
+      this.saveToLocal(trades);
+      window.dispatchEvent(new CustomEvent('tradesUpdated', {
+        detail: { tradesCount: trades.length }
+      }));
     }
   }
 
@@ -129,12 +150,15 @@ class CSVManager {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const response = await fetch(`${apiUrl}/api/trades`);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        console.warn('Backend unavailable, falling back to local storage');
+        return this.loadFromLocal();
+      }
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error loading trades from API:', error);
-      return [];
+      console.warn('Backend unavailable, falling back to local storage:', error);
+      return this.loadFromLocal();
     }
   }
 
