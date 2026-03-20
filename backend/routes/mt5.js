@@ -24,8 +24,12 @@ router.get('/token', auth, async (req, res) => {
       webhookUrl: webhookUrl
     });
   } catch (error) {
-    console.error('Error fetching MT5 token:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('CRITICAL: Error fetching MT5 token:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Server error fetching MT5 configuration', 
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+    });
   }
 });
 
