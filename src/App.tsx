@@ -18,6 +18,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import LinkMT5Page from "@/pages/LinkMT5Page";
 import NotFound from "@/pages/NotFound";
 import { Analytics } from "@vercel/analytics/react";
+import FloatingChat from "@/components/FloatingChat";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/link-mt5" element={<ProtectedRoute><LinkMT5Page /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <FloatingChat />
           </AuthProvider>
         </BrowserRouter>
         <Analytics />
