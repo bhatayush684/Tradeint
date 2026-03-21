@@ -31,3 +31,21 @@ ai-api/.venv
 ai-api/env/
 ai-api/venv/
 ai-api/.pytest_cache/
+
+# clerk configuration (can include secrets)
+/.clerk/
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# testing
+/coverage
+
+# misc
+.vercel
+*.pem
